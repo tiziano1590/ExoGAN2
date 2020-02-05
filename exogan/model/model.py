@@ -19,11 +19,7 @@ import matplotlib.pyplot as plt
 from six.moves import xrange
 import sys
 
-sys.path.append('./libraries')
-
-from libraries.ops import *
-from libraries.library_grid import *
-from util import *
+from exogan.util import *
 
 class DCGAN(object):
     def __init__(self, sess, image_size=72, is_crop=False,

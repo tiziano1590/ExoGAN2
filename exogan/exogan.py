@@ -10,18 +10,14 @@ def main():
     import argparse
     import datetime
     import tensorflow as tf
-    from parameter import ParameterParser
-    from data import DATA
-    from util import file_is_modified, create_parameters_tuple, make_dir
-    from util import download_server, check_fin_dir
-    from tools import Graphs, Bayes
+    from exogan.parameter import ParameterParser
+    from exogan.util import directory, make_dir
     import numpy as np
     import glob
     import matplotlib.pyplot as plt
     import pickle
-    from model import DCGAN
+    from exogan.model import DCGAN
     import os
-    from libraries.library_grid import Ag, Rp, a, incl, phi0
     
     parser = argparse.ArgumentParser(description='ExoGazer')
     
