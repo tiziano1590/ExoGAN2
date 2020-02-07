@@ -23,54 +23,42 @@ from exogan.util import *
 
 
 class DCGAN(object):
-    def __init__(self, sess, image_size=64, is_crop=False,
-                 batch_size=64, sample_size=64, lowres=8,
-                 z_dim=100, gf_dim=64, df_dim=64,
-                 gfc_dim=1024, dfc_dim=1024, c_dim=3,
-                 checkpoint_dir=None, lam=0.1):
+    def __init__(self, sess, genpars):
         """
         Args:
             sess: TensorFlow session
-            batch_size: The size of batch. Should be specified before training.
-            lowres: (optional) Low resolution image/mask shrink factor. [8]
-            z_dim: (optional) Dimension of dim for Z. [100]
-            gf_dim: (optional) Dimension of gen filters in first conv layer. [64]
-            df_dim: (optional) Dimension of discrim filters in first conv layer. [64]
-            gfc_dim: (optional) Dimension of gen untis for for fully connected layer. [1024]
-            dfc_dim: (optional) Dimension of discrim units for fully connected layer. [1024]
-            c_dim: (optional) Dimension of image color. [3]
+            genpars: Dictionary of general parameter to define the DCGAN network
         """
         # Currently, image size must be a (power of 2) and (8 or higher).
         ## assert (image_size & (image_size - 1) == 0 and image_size >= 8)
 
         self.sess = sess
-        self.is_crop = is_crop
-        self.batch_size = batch_size
-        self.image_size = image_size
-        self.sample_size = sample_size
-        self.image_shape = [image_size, image_size, c_dim]
+        self.is_crop = bool(genpars['is_crop'])
+        self.batch_size = int(genpars['batch_size'])
+        self.image_size = int(genpars['image_size'])
+        self.sample_size = int(genpars['sample_size'])
+        self.c_dim = int(genpars['c_dim'])
+        self.image_shape = [self.image_size, self.image_size, self.c_dim]
 
-        self.z_dim = z_dim
+        self.z_dim = int(genpars['z_dim'])
 
-        self.gf_dim = gf_dim
-        self.df_dim = df_dim
+        self.gf_dim = int(genpars['gf_dim'])
+        self.df_dim = int(genpars['df_dim'])
 
-        self.gfc_dim = gfc_dim
-        self.dfc_dim = dfc_dim
+        self.gfc_dim = int(genpars['gfc_dim'])
+        self.dfc_dim = int(genpars['dfc_dim'])
 
-        self.lam = lam
-
-        self.c_dim = c_dim
+        self.lam = float(genpars['lam'])
 
         # batch normalization : deals with poor initialization helps gradient flow
         self.d_bns = [
             batch_norm(name='d_bn{}'.format(i, )) for i in range(4)]
 
-        log_size = int(math.log(image_size) / math.log(2))
+        log_size = int(math.log(self.image_size) / math.log(2))
         self.g_bns = [
             batch_norm(name='g_bn{}'.format(i, )) for i in range(log_size)]
 
-        self.checkpoint_dir = checkpoint_dir
+        self.checkpoint_dir = directory(genpars['checkpoint_dir'])
         self.build_model()
 
         self.model_name = "DCGAN.model"
@@ -127,14 +115,28 @@ class DCGAN(object):
         self.complete_loss = self.contextual_loss + self.lam * self.perceptual_loss
         self.grad_complete_loss = tf.gradients(self.complete_loss, self.z)
 
-    def train(self, config, X):
+    def train(self, trainpars):
+
+        epoch =         int(trainpars['epoch'])
+        learning_rate = float(trainpars['learning_rate'])
+        beta1 =         float(trainpars['beta1'])
+        train_size =    float(trainpars['train_size'])
+        if train_size == 1e99:
+            train_size =      np.inf
+        batch_size =    int(trainpars['batch_size'])
+        image_size =    int(trainpars['image_size'])
+        dataset =       str(trainpars['dataset'])
+        checkpoint_dir = directory(str(trainpars['checkpoint_dir']))
+        sample_dir =    str(trainpars['sample_dir'])
+        log_dir =       directory(str(trainpars['log_dir']))
+
         data = X
         np.random.shuffle(data)
         assert (len(data) > 0)
 
-        d_optim = tf.train.AdamOptimizer(config.learning_rate, beta1=config.beta1) \
+        d_optim = tf.train.AdamOptimizer(learning_rate, beta1=beta1) \
             .minimize(self.d_loss, var_list=self.d_vars)
-        g_optim = tf.train.AdamOptimizer(config.learning_rate, beta1=config.beta1) \
+        g_optim = tf.train.AdamOptimizer(learning_rate, beta1=beta1) \
             .minimize(self.g_loss, var_list=self.g_vars)
         with self.sess.as_default():
             try:
@@ -145,7 +147,7 @@ class DCGAN(object):
             [self.z_sum, self.d__sum, self.G_sum, self.d_loss_fake_sum, self.g_loss_sum])
         self.d_sum = tf.summary.merge(
             [self.z_sum, self.d_sum, self.d_loss_real_sum, self.d_loss_sum])
-        self.writer = tf.summary.FileWriter("./logs", self.sess.graph)
+        self.writer = tf.summary.FileWriter(log_dir, self.sess.graph)
 
         sample_z = np.random.uniform(-1, 1, size=(self.sample_size, self.z_dim))
         sample_files = data[0:self.sample_size]
@@ -155,7 +157,7 @@ class DCGAN(object):
         counter = 1
         start_time = time.time()
 
-        if self.load(self.checkpoint_dir):
+        if self.load(checkpoint_dir):
             print("""
             ======
             An existing model was found in the checkpoint directory.
@@ -174,17 +176,17 @@ class DCGAN(object):
             ======
             """)
 
-        for epoch in xrange(config.epoch):
+        for epoch in xrange(epoch):
             data = X
-            batch_idxs = min(len(data), config.train_size) // self.batch_size
+            batch_idxs = min(len(data), train_size) // self.batch_size
 
             for idx in xrange(0, batch_idxs):
-                batch_files = data[idx * config.batch_size:(idx + 1) * config.batch_size]
+                batch_files = data[idx * batch_size:(idx + 1) * batch_size]
                 batch = [get_spectral_matrix(batch_file, size=self.image_size - 10)
                          for batch_file in batch_files]
                 batch_images = np.array(batch).astype(np.float32)
 
-                batch_z = np.random.uniform(-1, 1, [config.batch_size, self.z_dim]) \
+                batch_z = np.random.uniform(-1, 1, [batch_size, self.z_dim]) \
                     .astype(np.float32)
 
                 # Update D network
@@ -221,7 +223,7 @@ class DCGAN(object):
                 #          print("[Sample] d_loss: {:.8f}, g_loss: {:.8f}".format(d_loss, g_loss))
 
                 if np.mod(counter, 1000) == 2:
-                    self.save(config.checkpoint_dir, counter)
+                    self.save(checkpoint_dir, counter)
 
     def complete(self, config, X, path="", sigma=0.0):
         """

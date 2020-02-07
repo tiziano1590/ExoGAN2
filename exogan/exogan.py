@@ -38,36 +38,15 @@ def main():
     pp = ParameterParser()
     pp.read(args.input_file)
     genpars = pp.generalpars()
-    if genpars["suppress_tf_warnings"]:
-        tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
-        
-    trainpars = pp.trainpars()
-    
-    nthreads = int(genpars['gen_trainset_nthreads'])
-    data_type = genpars['data_type']
-    planet = genpars['planet']
-    generate_training_set = genpars['generate_training_set']
-    train_dcgan = genpars['train_dcgan']
-    nodes_number = int(genpars['nodes_number'])
-    node = int(genpars['node'])
 
     if args.train:
-        
-        batch_size =     int(trainpars['batch_size'])
-        image_size =     int(trainpars['image_size'])
-        checkpoint_dir = str(trainpars['checkpoint_dir'])
-        sample_dir =     str(trainpars['sample_dir'])
-        log_dir =        str(trainpars['log_dir'])
-        
-        make_dir(checkpoint_dir)
-        make_dir(sample_dir)
-        make_dir(log_dir)
-        
+
+        trainpars = pp.trainpars()
+
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
         with tf.Session(config=config) as sess:
-            dcgan = DCGAN(sess, image_size=image_size, batch_size=batch_size,
-                          is_crop=False, checkpoint_dir=checkpoint_dir)
+            dcgan = DCGAN(sess, genpars)
             dcgan.train(trainpars)
             
     if args.completion:
