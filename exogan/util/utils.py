@@ -27,6 +27,8 @@ import stat
 import pickle
 import logging
 import glob
+import pandas as pd
+import gzip
 import tensorflow as tf
 from tensorflow.python.framework import ops
 
@@ -46,7 +48,6 @@ def directory(name):
         return name
     else:
         return name+'/'
-
 
 def nan_rem(arr):
     """
@@ -1289,13 +1290,14 @@ def load(filename):
     buffer = ""
     while 1:
         data = file.read()
+        print(data)
         if data == "":
             break
         buffer += data
+
     object = pickle.loads(buffer)
     file.close()
     return object
-
 
 def make_corner_plot(all_hists, ranges, labels, ground_truths, config, index):
     make_dir('histograms/corner', config)

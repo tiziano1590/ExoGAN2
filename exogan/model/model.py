@@ -58,7 +58,6 @@ class DCGAN(object):
         self.g_bns = [
             batch_norm(name='g_bn{}'.format(i, )) for i in range(log_size)]
 
-        self.checkpoint_dir = directory(genpars['checkpoint_dir'])
         self.build_model()
 
         self.model_name = "DCGAN.model"
@@ -232,6 +231,7 @@ class DCGAN(object):
 
         Input: any spectrum correctly converted into an ASPA code
         """
+        checkpoint_dir = directory(comppars['checkpoint_dir'])
 
         if type(X) == dict:
             X_to_split = copy.deepcopy(X)
@@ -257,7 +257,7 @@ class DCGAN(object):
             except:
                 tf.initialize_all_variables().run()
 
-        isLoaded = self.load(self.checkpoint_dir)
+        isLoaded = self.load(checkpoint_dir)
         assert (isLoaded)
 
         wnw_grid = np.genfromtxt('wnw_grid.txt')
