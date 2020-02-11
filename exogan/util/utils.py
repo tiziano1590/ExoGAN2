@@ -32,7 +32,10 @@ import gzip
 import tensorflow as tf
 from tensorflow.python.framework import ops
 from exogan.tools import ReportInterface
+from exogan.libraries import Grids
 
+RJUP = 6.9911e7
+MJUP = 1.898e27
 
 def find_nearest(array, value):
     array = np.asarray(array)
@@ -998,7 +1001,7 @@ def get_spectral_library(split=0.1):
 
 
 def get_spectral_matrix(path, parfile=None, size=23):
-    wnw_grid = np.genfromtxt('./wnw_grid.txt')
+    wnw_grid = Grids.wnw_grid
     # global normalisation over the entire dataset
     norm_bounds = np.array([0.63, 0.77, 0.88, 1.0, 1.1, 1.25,
                             1.8, 2.13, 3.96, 4.56, 6.33, 7.21, 10.0])
