@@ -31,6 +31,7 @@ import pandas as pd
 import gzip
 import tensorflow as tf
 from tensorflow.python.framework import ops
+from exogan.tools import ReportInterface
 
 
 def find_nearest(array, value):
@@ -1604,4 +1605,7 @@ def transform(image, npx=64, is_crop=True):
     else:
         cropped_image = image
     return np.array(cropped_image)
+
+def load_dict_from_hdf5(filename):
+    return ReportInterface.__load_dict_from_hdf5__(filename)
 

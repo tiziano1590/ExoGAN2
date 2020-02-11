@@ -18,6 +18,7 @@ install_requires = ['numpy',
                     'tensorflow==1.15',
                     'tqdm',
                     'imageio',
+                    'pandas',
                     'astropy']
 
 console_scripts = ['exogan=exogan.exogan:main']
