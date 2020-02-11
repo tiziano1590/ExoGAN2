@@ -61,31 +61,11 @@ setup(name='exogan',
     url='https://github.com/ucl-exoplanets/ExoGAN2.git',
     long_description_content_type="text/markdown",
     keywords = ['exoplanet','retrieval','exogan', 'exogan2','atmosphere','atmospheric'],
-    include_package_data=True,
+    package_data={
+            # If any package contains *.txt or *.rst files, include them:
+            "": ["*.txt", "*.rst", "*.dat"]},
+    # include_package_data=True,
     entry_points=entry_points,
     provides=provides,
     requires=requires,
     install_requires=install_requires)
-
-# setup(
-#     # Needed to silence warnings (and to be a worthwhile package)
-#     name='exogan',
-#     url='https://github.com/ucl-exoplanets/ExoGAN2.git',
-#     author='Tiziano Zingales',
-#     author_email='tiziano.zingales@u-bordeaux.fr',
-#     # Needed to actually package something
-#     packages=['exogan'],
-#     # Needed for dependencies
-#     install_requires=['numpy',
-#                       'tensorflow==1.15',
-#                       'configobj',
-#                       'matplotlib',
-#                       'h5py'],
-#     # *strongly* suggested for sharing
-#     version='2.0',
-#     # The license can be anything you like
-#     license='LAB',
-#     description='Deep Convolutional Neural Network to study exoplanetary spectra',
-#     # We will also need a readme eventually (there will be a warning)
-#     # long_description=open('README.md').read(),
-# )
