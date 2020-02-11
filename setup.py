@@ -3,7 +3,8 @@ from setuptools import find_packages
 from numpy.distutils.core import setup
 
 packages = find_packages(exclude=('tests', 'doc'))
-provides = ['taurex', ]
+
+provides = ['exogan', ]
 
 
 requires = []

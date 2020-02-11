@@ -1001,7 +1001,8 @@ def get_spectral_library(split=0.1):
 
 
 def get_spectral_matrix(path, parfile=None, size=23):
-    wnw_grid = Grids.wnw_grid
+    grids = Grids()
+    wnw_grid = grids.wnw_grid
     # global normalisation over the entire dataset
     norm_bounds = np.array([0.63, 0.77, 0.88, 1.0, 1.1, 1.25,
                             1.8, 2.13, 3.96, 4.56, 6.33, 7.21, 10.0])
