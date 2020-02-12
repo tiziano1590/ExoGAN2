@@ -30,6 +30,7 @@ import glob
 import pandas as pd
 import gzip
 import tensorflow as tf
+import multiprocessing as mp
 from tensorflow.python.framework import ops
 from exogan.tools import ReportInterface
 from exogan.libraries import Grids
@@ -1176,18 +1177,49 @@ def get_spectral_matrix(path, parfile=None, size=23):
 
     return new_row
 
+def fun(f, q_in, q_out):
+    while True:
+        i, x = q_in.get()
+        if i is None:
+            break
+        q_out.put((i, f(x)))
+
+def parmap(f, X, nprocs):
+    q_in = mp.Queue(1)
+    q_out = mp.Queue()
+
+    proc = [mp.Process(target=fun, args=(f, q_in, q_out))
+            for _ in range(nprocs)]
+    for p in proc:
+        p.daemon = True
+        p.start()
+
+    sent = [q_in.put((i, x)) for i, x in enumerate(X)]
+    [q_in.put((None, None)) for _ in range(nprocs)]
+    res = [q_out.get() for _ in range(len(sent))]
+
+    [p.join() for p in proc]
+
+    return [x for i, x in sorted(res)]
+
 def get_aspa_dataset_from_hdf5(train_path):
 
     train_list = glob.glob(train_path + "*.h5")
 
     # print("Loading  h5 file to python dictionary...")
     final_dict = {}
-    for ii in range(len(train_list)):
+
+    def hdf5_loader(ii):
         print("Loading dataset number %d" % (ii + 1))
         data = load_dict_from_hdf5(train_list[ii])
-        final_dict.update(data)
+        return data
 
-    keys = list(data.keys())
+    list_of_dicts = parmap(hdf5_loader, range(len(train_list)), mp.cpu_count())
+
+    for subdict in list_of_dicts:
+        final_dict.update(subdict)
+
+    keys = list(final_dict.keys())
     # print(keys)
 
     print("Turning spectral array into a ASPA matrix...")
