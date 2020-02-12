@@ -126,7 +126,6 @@ class DCGAN(object):
         if train_size == 1e99:
             train_size =      np.inf
         batch_size =    int(trainpars['batch_size'])
-        image_size =    int(trainpars['image_size'])
         dataset =       directory(str(trainpars['dataset']))
         checkpoint_dir = directory(str(trainpars['checkpoint_dir']))
         sample_dir =    str(trainpars['sample_dir'])
