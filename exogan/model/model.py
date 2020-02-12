@@ -124,12 +124,12 @@ class DCGAN(object):
             train_size =      np.inf
         batch_size =    int(trainpars['batch_size'])
         image_size =    int(trainpars['image_size'])
-        dataset =       str(trainpars['dataset'])
+        dataset =       directory(str(trainpars['dataset']))
         checkpoint_dir = directory(str(trainpars['checkpoint_dir']))
         sample_dir =    str(trainpars['sample_dir'])
         log_dir =       directory(str(trainpars['log_dir']))
 
-        data = X
+        data = get_aspa_dataset_from_hdf5(dataset)
         np.random.shuffle(data)
         assert (len(data) > 0)
 
@@ -176,7 +176,6 @@ class DCGAN(object):
             """)
 
         for epoch in xrange(epoch):
-            data = X
             batch_idxs = min(len(data), train_size) // self.batch_size
 
             for idx in xrange(0, batch_idxs):

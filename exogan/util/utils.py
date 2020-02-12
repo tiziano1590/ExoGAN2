@@ -1176,6 +1176,28 @@ def get_spectral_matrix(path, parfile=None, size=23):
 
     return new_row
 
+def get_aspa_dataset_from_hdf5(train_path):
+
+    train_list = glob.glob(train_path + "*.h5")
+
+    # print("Loading  h5 file to python dictionary...")
+    final_dict = {}
+    for ii in range(len(train_list)):
+        print("Loading dataset number %d" % (ii + 1))
+        data = load_dict_from_hdf5(train_list[ii])
+        final_dict.update(data)
+
+    keys = list(data.keys())
+    # print(keys)
+
+    print("Turning spectral array into a ASPA matrix...")
+    ASPAs = []
+    for jj in range(len(keys)):
+        aspa = get_spectral_matrix(final_dict[keys[jj]])
+        ASPAs.append(aspa)
+    ASPAs = np.array(ASPAs)
+    return ASPAs
+
 
 def get_test_image(X, sigma=0.0, size=33, batch_size=64, parfile=None, wfc3=False):
     batch = []
