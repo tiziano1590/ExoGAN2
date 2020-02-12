@@ -63,12 +63,15 @@ class DCGAN(object):
         self.model_name = "DCGAN.model"
 
     def build_model(self):
-        self.is_training = tf.placeholder(tf.bool, name='is_training')
-        self.images = tf.placeholder(
-            tf.float32, [None] + self.image_shape, name='real_images')
+        self.is_training = tf.compat.v1.placeholder(tf.bool, name='is_training')
+        self.images = tf.compat.v1.placeholder(tf.float32,
+                                               [None] + self.image_shape,
+                                               name='real_images')
 
-        self.z = tf.placeholder(tf.float32, [None, self.z_dim], name='z')
-        self.z_sum = tf.summary.histogram("z", self.z)
+        self.z = tf.compat.v1.placeholder(tf.float32,
+                                          [None, self.z_dim],
+                                          name='z')
+        self.z_sum = tf.compat.v1.summary.histogram("z", self.z)
 
         self.G = self.generator(self.z)
 
@@ -76,9 +79,9 @@ class DCGAN(object):
 
         self.D_, self.D_logits_ = self.discriminator(self.G, reuse=True)
 
-        self.d_sum = tf.summary.histogram("d", self.D)
-        self.d__sum = tf.summary.histogram("d_", self.D_)
-        self.G_sum = tf.summary.image("G", self.G)
+        self.d_sum = tf.compat.v1.summary.histogram("d", self.D)
+        self.d__sum = tf.compat.v1.summary.histogram("d_", self.D_)
+        self.G_sum = tf.compat.v1.summary.image("G", self.G)
 
         self.d_loss_real = tf.reduce_mean(
             tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_logits,
@@ -90,20 +93,20 @@ class DCGAN(object):
             tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_logits_,
                                                     labels=tf.ones_like(self.D_)))
 
-        self.d_loss_real_sum = tf.summary.scalar("d_loss_real", self.d_loss_real)
-        self.d_loss_fake_sum = tf.summary.scalar("d_loss_fake", self.d_loss_fake)
+        self.d_loss_real_sum = tf.compat.v1.summary.scalar("d_loss_real", self.d_loss_real)
+        self.d_loss_fake_sum = tf.compat.v1.summary.scalar("d_loss_fake", self.d_loss_fake)
 
         self.d_loss = self.d_loss_real + self.d_loss_fake
 
-        self.g_loss_sum = tf.summary.scalar("g_loss", self.g_loss)
-        self.d_loss_sum = tf.summary.scalar("d_loss", self.d_loss)
+        self.g_loss_sum = tf.compat.v1.summary.scalar("g_loss", self.g_loss)
+        self.d_loss_sum = tf.compat.v1.summary.scalar("d_loss", self.d_loss)
 
         t_vars = tf.trainable_variables()
 
         self.d_vars = [var for var in t_vars if 'd_' in var.name]
         self.g_vars = [var for var in t_vars if 'g_' in var.name]
 
-        self.saver = tf.train.Saver(max_to_keep=1)
+        self.saver = tf.compat.v1.train.Saver(max_to_keep=1)
 
         # Completion.
         self.mask = tf.placeholder(tf.float32, self.image_shape, name='mask')
@@ -148,11 +151,6 @@ class DCGAN(object):
             [self.z_sum, self.d_sum, self.d_loss_real_sum, self.d_loss_sum])
         self.writer = tf.summary.FileWriter(log_dir, self.sess.graph)
 
-        sample_z = np.random.uniform(-1, 1, size=(self.sample_size, self.z_dim))
-        sample_files = data[0:self.sample_size]
-
-        sample = [get_spectral_matrix(sample_file, size=self.image_size - 10) for sample_file in sample_files]
-        sample_images = np.array(sample).astype(np.float32)
         counter = 1
         start_time = time.time()
 
@@ -179,9 +177,9 @@ class DCGAN(object):
             batch_idxs = min(len(data), train_size) // self.batch_size
 
             for idx in xrange(0, batch_idxs):
-                batch_files = data[idx * batch_size:(idx + 1) * batch_size]
-                batch = [get_spectral_matrix(batch_file, size=self.image_size - 10)
-                         for batch_file in batch_files]
+                batch = data[idx * batch_size:(idx + 1) * batch_size]
+                # batch = [get_spectral_matrix(batch_file, size=self.image_size - 10)
+                #          for batch_file in batch_files]
                 batch_images = np.array(batch).astype(np.float32)
 
                 batch_z = np.random.uniform(-1, 1, [batch_size, self.z_dim]) \

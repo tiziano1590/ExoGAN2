@@ -736,7 +736,7 @@ Deep Learning operations
 class batch_norm(object):
     """Code modification of http://stackoverflow.com/a/33950177"""
     def __init__(self, epsilon=1e-5, momentum = 0.9, name="batch_norm"):
-        with tf.variable_scope(name):
+        with tf.compat.v1.variable_scope(name):
             self.epsilon = epsilon
             self.momentum = momentum
 
@@ -817,10 +817,10 @@ def linear(input_, output_size, scope=None, stddev=0.02, bias_start=0.0, with_w=
     shape = input_.get_shape().as_list()
 
     with tf.variable_scope(scope or "Linear"):
-        matrix = tf.get_variable("Matrix", [shape[1], output_size], tf.float32,
-                                 tf.random_normal_initializer(stddev=stddev))
-        bias = tf.get_variable("bias", [output_size],
-            initializer=tf.constant_initializer(bias_start))
+        matrix = tf.compat.v1.get_variable("Matrix", [shape[1], output_size], tf.float32,
+                                           tf.random_normal_initializer(stddev=stddev))
+        bias = tf.compat.v1.get_variable("bias", [output_size],
+                                         initializer=tf.constant_initializer(bias_start))
         if with_w:
             return tf.matmul(input_, matrix) + bias, matrix, bias
         else:
@@ -1114,8 +1114,8 @@ def get_spectral_matrix(path, parfile=None, size=23):
         if i == len(norm_idx) - 2:
             frag = frag[:-4]
 
-        minf = min(frag)
-        maxf = max(frag)
+        minf = np.min(frag)
+        maxf = np.max(frag)
 
         if (minf == maxf):
             norm_spectrum[norm_idx[i]:norm_idx[i + 1]] = 0.
