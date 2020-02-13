@@ -31,9 +31,13 @@ import pandas as pd
 import gzip
 import tensorflow as tf
 import multiprocessing as mp
+import copy
+from PIL import Image
+
 from tensorflow.python.framework import ops
 from exogan.tools import ReportInterface
 from exogan.libraries import Grids
+from exogan.parameter import ParameterParser
 
 RJUP = 6.9911e7
 MJUP = 1.898e27
@@ -1016,10 +1020,11 @@ def get_spectral_matrix(path, parfile=None, size=23):
     if type(path) == str and path[-3:] == 'dat':
 
         # TODO -- correction for stellar radius
-        parser = SafeConfigParser()
-        parser.readfp(open(parfile, 'rb'))  # python 2
+        pp = ParameterParser()
+        pp.read(parfile)
+        real_pars = pp.full_dict()
 
-        star_radius = getpar(parser, 'Star', 'radius', 'float')
+        star_radius = float(real_pars['Star']['radius'])
         radius_fac = star_radius ** 2
         spec = np.genfromtxt(path)
 
@@ -1036,12 +1041,12 @@ def get_spectral_matrix(path, parfile=None, size=23):
         mean_param = [max_s] * half_row
         mean_param = np.array(mean_param)
         param_list = []
+        planet_temperature = float(real_pars['Atmosphere']['tp_iso_temp']) / 2e3
+        planet_radius = float(real_pars['Planet']['radius']) / 1.5
+        planet_mass = float(real_pars['Planet']['mass']) / 2.0
+        atm_active_gases = np.array([gas.upper() for gas in real_pars['Atmosphere']['active_gases']])
+        atm_active_gases_mixratios = np.array(real_pars['Atmosphere']['active_gases_mixratios'])
 
-        planet_temperature = getpar(parser, 'Atmosphere', 'tp_iso_temp', 'float') / 2e3
-        planet_radius = getpar(parser, 'Planet', 'radius', 'float') / (1.5)
-        planet_mass = getpar(parser, 'Planet', 'mass', 'float') / (2.0)
-        atm_active_gases = np.array([gas.upper() for gas in getpar(parser, 'Atmosphere', 'active_gases', 'list-str')])
-        atm_active_gases_mixratios = np.array(getpar(parser, 'Atmosphere', 'active_gases_mixratios', 'list-float'))
         atm_active_gases_mixratios = -np.log10(atm_active_gases_mixratios) / 8.
         if 'H2O' in atm_active_gases:
             index = np.where(atm_active_gases == 'H2O')[0]
@@ -1232,6 +1237,7 @@ def get_aspa_dataset_from_hdf5(train_path):
 
 
 def get_test_image(X, sigma=0.0, size=33, batch_size=64, parfile=None, wfc3=False):
+
     batch = []
     if type(X) == dict:
         X_to_split = copy.deepcopy(X)
@@ -1241,12 +1247,11 @@ def get_test_image(X, sigma=0.0, size=33, batch_size=64, parfile=None, wfc3=Fals
 
         if X[-3:] == 'dat':
             X_to_split = np.genfromtxt(X)[:, 1]
-            test = lambda x: get_spectral_matrix(x, parfile=X[:-3] + 'par')
+            test = lambda x: get_spectral_matrix(x, parfile=parfile)
     else:
         X_to_split = np.array(X)
         test = lambda x: get_spectral_matrix(x)
 
-    wnw = np.genfromtxt('./wnw_grid.txt')
 
     new_zeros = np.zeros((size, size, 1))
     for i in range(batch_size):
@@ -1380,7 +1385,7 @@ def make_corner_plot(all_hists, ranges, labels, ground_truths, config, index):
 
 def make_dir(name, config):
     # Works on python 2.7, where exist_ok arg to makedirs isn't available.
-    p = os.path.join(config.outDir, name)
+    p = os.path.join(config['outDir'], name)
     if not os.path.exists(p):
         os.makedirs(p)
 

@@ -55,17 +55,16 @@ def main():
         lam = float(comppars['lam'])
         imgSize = int(comppars['imgSize'])
 
-        spectrum = ['./input_spectrum.dat']
+        spectrum = comppars['input']
+        parfile = comppars['parfile']
 
-        args = parser.parse_args()
         assert (os.path.exists(checkpointDir))
         tf.reset_default_graph()
         config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=True)
         config.gpu_options.allow_growth = True
-        comppars['outDir'] = "tests/%d/%s" % (cc, test_set[ii].split('/')[-1][:-5])
         with tf.Session(config=config) as sess:
-            dcgan = DCGAN(sess)
-            dcgan.complete(comppars)
+            dcgan = DCGAN(sess, genpars)
+            dcgan.complete(comppars, spectrum, parfile=parfile)
 
 
     print('ExoGAN PROGRAM FINISHES AT %s' % datetime.datetime.now())

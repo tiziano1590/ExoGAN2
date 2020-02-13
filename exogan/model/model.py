@@ -17,9 +17,11 @@ import gzip
 import tensorflow as tf
 import matplotlib.pyplot as plt
 from six.moves import xrange
+from scipy.stats import chisquare
 import sys
 import copy
 
+from exogan.parameter import ParameterParser
 from exogan.util import *
 
 
@@ -221,19 +223,20 @@ class DCGAN(object):
                 if np.mod(counter, 1000) == 2:
                     self.save(checkpoint_dir, counter)
 
-    def complete(self, comppars, X, sigma=0.0):
+    def complete(self, comppars, X, parfile=None, sigma=0.0):
         """
         Finds the best representation that can complete any missing
         part of the ASPA code.
 
         Input: any spectrum correctly converted into an ASPA code
         """
-        outDir = comppars['outDir']
+        outDir = directory(comppars['outDir'])
         maskType = comppars['maskType']
         centerScale = comppars['centerScale']
         nIter = int(comppars['nIter'])
         outInterval = int(comppars['outInterval'])
         approach = comppars['approach']
+        make_corner = bool(comppars['make_corner'])
 
         beta1 = comppars['beta1']
         beta2 = comppars['beta2']
@@ -244,7 +247,9 @@ class DCGAN(object):
         hmcEps = comppars['hmcEps']
         hmcBeta = comppars['hmcBeta']
         hmcAnneal = comppars['hmcAnneal']
-        checkpoint_dir = directory(comppars['checkpoint_dir'])
+        checkpoint_dir = directory(comppars['checkpointDir'])
+
+        build_directories(comppars)
 
         if type(X) == dict:
             X_to_split = copy.deepcopy(X)
@@ -277,35 +282,35 @@ class DCGAN(object):
         nImgs = self.batch_size
 
         batch_idxs = int(np.ceil(nImgs / self.batch_size))
-        if config.maskType == 'random':
+        if maskType == 'random':
             fraction_masked = 0.2
             mask = np.ones(self.image_shape)
             mask[np.random.random(self.image_shape[:2]) < fraction_masked] = 0.0
-        elif config.maskType == 'center':
-            assert (config.centerScale <= 0.5)
+        elif maskType == 'center':
+            assert (centerScale <= 0.5)
             mask = np.ones(self.image_shape)
-            l = int(self.image_size * config.centerScale)
-            u = int(self.image_size * (1.0 - config.centerScale))
+            l = int(self.image_size * centerScale)
+            u = int(self.image_size * (1.0 - centerScale))
             mask[l:u, l:u, :] = 0.0
-        elif config.maskType == 'left':
+        elif maskType == 'left':
             mask = np.ones(self.image_shape)
             c = self.image_size // 2
             mask[:, :c, :] = 0.0
-        elif config.maskType == 'full':
+        elif maskType == 'full':
             mask = np.ones(self.image_shape)
-        elif config.maskType == 'grid':
+        elif maskType == 'grid':
             mask = np.zeros(self.image_shape)
             mask[::4, ::4, :] = 1.0
-        elif config.maskType == 'lowres':
+        elif maskType == 'lowres':
             mask = np.zeros(self.image_shape)
-        elif config.maskType == 'parameters':
-            assert (config.centerScale <= 0.5)
+        elif maskType == 'parameters':
+            assert (centerScale <= 0.5)
             mask = np.ones(self.image_shape)
             mask[-3:, :, :] = 0.0
             mask[:, -3:, :] = 0.0
             mask[-10:, -10:, :] = 0.0
-        elif config.maskType == 'wfc3':
-            assert (config.centerScale <= 0.5)
+        elif maskType == 'wfc3':
+            assert (centerScale <= 0.5)
             m_size = self.image_size - 10
             mask = np.ones(self.image_shape)
             fake_spec = np.ones(m_size ** 2)
@@ -327,9 +332,9 @@ class DCGAN(object):
                 Xtrue = get_spectral_matrix(X, size=self.image_size - 10)
                 Xt = get_test_image(X, sigma=sigma, size=self.image_size, batch_size=self.batch_size)
             else:
-                Xtrue = get_spectral_matrix(X, parfile=X[:-3] + 'par', size=self.image_size - 10)
+                Xtrue = get_spectral_matrix(X, parfile=parfile, size=self.image_size - 10)
                 Xt = get_test_image(X, sigma=sigma, size=self.image_size, batch_size=self.batch_size,
-                                    parfile=X[:-3] + 'par')
+                                    parfile=parfile)
             spec_parameters = get_parameters(Xtrue, size=self.image_size)
 
             batch = Xt
@@ -350,25 +355,25 @@ class DCGAN(object):
             nCols = int(np.sqrt(nImgs))
             #      save_images(batch_images[:nImgs, :, :, :], [nRows, nCols],
             #                  os.path.join(config.outDir, 'before.pdf'))
-            plt.imsave(os.path.join(config.outDir, 'before.png'), Xtrue[:, :, 0], cmap='gist_gray', format='png')
+            plt.imsave(os.path.join(outDir, 'before.png'), Xtrue[:, :, 0], cmap='gist_gray', format='png')
             plt.close()
-            resize(os.path.join(config.outDir, 'before.png'))
+            resize(os.path.join(outDir, 'before.png'))
 
             masked_images = np.multiply(batch_images, mask)
             #      save_images(masked_images[:nImgs, :, :, :], [nRows, nCols],
             #                  os.path.join(config.outDir, 'masked.pdf'))
-            plt.imsave(os.path.join(config.outDir, 'masked.png'), masked_images[0, :, :, 0], cmap='gist_gray',
+            plt.imsave(os.path.join(outDir, 'masked.png'), masked_images[0, :, :, 0], cmap='gist_gray',
                        format='png')
             plt.close()
-            resize(os.path.join(config.outDir, 'masked.png'))
+            resize(os.path.join(outDir, 'masked.png'))
 
             for img in range(batchSz):
-                with open(os.path.join(config.outDir, 'logs/hats_{:02d}.log'.format(img)), 'a') as f:
+                with open(os.path.join(outDir, 'logs/hats_{:02d}.log'.format(img)), 'a') as f:
                     f.write('iter loss ' +
                             ' '.join(['z{}'.format(zi) for zi in range(self.z_dim)]) +
                             '\n')
 
-            for i in xrange(config.nIter):
+            for i in xrange(nIter):
 
                 fd = {
                     self.z: zhats,
@@ -380,12 +385,12 @@ class DCGAN(object):
                 loss, g, G_imgs = self.sess.run(run, feed_dict=fd)
 
                 for img in range(batchSz):
-                    with open(os.path.join(config.outDir, 'logs/hats_{:02d}.log'.format(img)), 'ab') as f:
+                    with open(os.path.join(outDir, 'logs/hats_{:02d}.log'.format(img)), 'ab') as f:
                         f.write('{} {} '.format(i, loss[img]).encode())
                         np.savetxt(f, zhats[img:img + 1])
 
-                if i % config.outInterval == 0:
-                    prediction_file = open(config.outDir + 'predictions/prediction_{:04d}.txt'.format(i), 'w')
+                if i % outInterval == 0:
+                    prediction_file = open(outDir + 'predictions/prediction_{:04d}.txt'.format(i), 'w')
 
                     ranges = []
                     ground_truths = []
@@ -393,24 +398,22 @@ class DCGAN(object):
                     gan_p_err = []
                     gan_m_err = []
 
-                    parser = SafeConfigParser()
-
                     if type(X) == str:
                         """
-                        If the input spectrum is sysnthetic, you know the parameters array 
+                        If the input spectrum is synthetic, you know the parameters array 
                         and you want to compare the real value with the retrieved one, if
                         your spectrum does not contain a molecule, the default value is fixed
                         to -7.9
                         """
-                        parser.readfp(open(X[:-3] + 'par', 'rb'))  # python 2
+                        pp = ParameterParser()
+                        pp.read(parfile)
+                        real_pars = pp.full_dict()
 
-                        real_tp = getpar(parser, 'Atmosphere', 'tp_iso_temp', 'float')
-                        real_rp = getpar(parser, 'Planet', 'radius', 'float')
-                        real_mp = getpar(parser, 'Planet', 'mass', 'float')
-                        atm_active_gases = np.array(
-                            [gas.upper() for gas in getpar(parser, 'Atmosphere', 'active_gases', 'list-str')])
-                        atm_active_gases_mixratios = np.array(
-                            getpar(parser, 'Atmosphere', 'active_gases_mixratios', 'list-float'))
+                        real_tp = float(real_pars['Atmosphere']['tp_iso_temp'])
+                        real_rp = float(real_pars['Planet']['radius'])
+                        real_mp = float(real_pars['Planet']['mass'])
+                        atm_active_gases = np.array([gas.upper() for gas in real_pars['Atmosphere']['active_gases']])
+                        atm_active_gases_mixratios = np.array(real_pars['Atmosphere']['active_gases_mixratios'])
                         real_mol = check_molecule_existence(['CO', 'CO2', 'H2O', 'CH4'],
                                                             atm_active_gases_mixratios,
                                                             atm_active_gases,
@@ -445,7 +448,7 @@ class DCGAN(object):
 
                     all_hists = np.array(all_hists).T
 
-                    if config.make_corner:
+                    if make_corner:
                         make_corner_plot(all_hists, ranges, labels, ground_truths, config, i)
 
                     """
@@ -466,7 +469,7 @@ class DCGAN(object):
                         hist_dict[labels[his]]['weights'] = weights
                         hist_dict[labels[his]]['bins'] = ranges[his]
                         ax[ii, his - jj].hist(all_hists[his], bins=np.linspace(min(ranges[his]), max(ranges[his]), 20),
-                                              color='firebrick', weights=weights, normed=0)
+                                              color='firebrick', weights=weights)
                         #            ax[his].set_ylim(0, 1)
                         ax[ii, his - jj].set_xlim(min(ranges[his]), max(ranges[his]))
                         ax[ii, his - jj].axvline(gan_avg[his], c='g', label='ExoGAN mean')
@@ -485,11 +488,11 @@ class DCGAN(object):
                     ax[-1, -1].axis('off')
                     plt.subplots_adjust(right=1.2)
 
-                    histName = os.path.join(config.outDir,
+                    histName = os.path.join(outDir,
                                             'histograms/all_par/{:04d}.pdf'.format(i))
                     plt.savefig(histName, bbox_inches='tight')
                     plt.close()
-                    histpickle = os.path.join(config.outDir,
+                    histpickle = os.path.join(outDir,
                                               'histograms/all_par/histogram.pickle')
                     with open(histpickle, 'wb') as fp:
                         pickle.dump(hist_dict, fp)
@@ -508,7 +511,7 @@ class DCGAN(object):
                     best_ind = chi_square.index(min(chi_square))
 
                     print(i, np.mean(loss[0:batchSz]))
-                    imgName = os.path.join(config.outDir,
+                    imgName = os.path.join(outDir,
                                            'hats_imgs/{:04d}.png'.format(i))
 
                     #          save_images(G_imgs[:nImgs, :, :, :], [nRows, nCols], imgName)
@@ -518,61 +521,61 @@ class DCGAN(object):
 
                     inv_masked_hat_images = np.multiply(G_imgs, 1.0 - mask)
                     completed = masked_images + inv_masked_hat_images
-                    imgName = os.path.join(config.outDir,
+                    imgName = os.path.join(outDir,
                                            'completed/{:04d}.png'.format(i))
                     #          save_images(completed[:nImgs, :, :, :], [nRows, nCols], imgName)
                     plt.imsave(imgName, completed[best_ind, :, :, 0], cmap='gist_gray', format='png')
                     plt.close()
                     resize(imgName)
 
-                    if config.spectra_int_norm:
+                    if spectra_int_norm:
                         # Compared real spectrum with the generated one
                         spectra_int_norm(Xtrue, self.image_size, wnw_grid,
                                          batchSz, G_imgs, config, i)
 
-                    if config.spectra_norm:
+                    if spectra_norm:
                         # Compare spectra with original normalisation between 0 and 1
                         spectra_norm(Xtrue, self.image_size, wnw_grid,
                                      batchSz, G_imgs, config, i)
 
-                    if config.spectra_real_norm:
+                    if spectra_real_norm:
                         # Compare spectra with the normalisation factor from the real spectrum
                         spectra_real_norm(Xtrue, self.image_size, wnw_grid,
                                           batchSz, G_imgs, config, i)
 
-                if config.approach == 'adam':
+                if approach == 'adam':
                     # Optimize single completion with Adam
                     m_prev = np.copy(m)
                     v_prev = np.copy(v)
-                    m = config.beta1 * m_prev + (1 - config.beta1) * g[0]
-                    v = config.beta2 * v_prev + (1 - config.beta2) * np.multiply(g[0], g[0])
-                    m_hat = m / (1 - config.beta1 ** (i + 1))
-                    v_hat = v / (1 - config.beta2 ** (i + 1))
-                    zhats += - np.true_divide(config.lr * m_hat, (np.sqrt(v_hat) + config.eps))
+                    m = beta1 * m_prev + (1 - beta1) * g[0]
+                    v = beta2 * v_prev + (1 - beta2) * np.multiply(g[0], g[0])
+                    m_hat = m / (1 - beta1 ** (i + 1))
+                    v_hat = v / (1 - beta2 ** (i + 1))
+                    zhats += - np.true_divide(lr * m_hat, (np.sqrt(v_hat) + eps))
                     zhats = np.clip(zhats, -1, 1)
 
-                elif config.approach == 'hmc':
+                elif approach == 'hmc':
                     # Sample example completions with HMC (not in paper)
                     zhats_old = np.copy(zhats)
                     loss_old = np.copy(loss)
                     v = np.random.randn(self.batch_size, self.z_dim)
                     v_old = np.copy(v)
 
-                    for steps in range(config.hmcL):
-                        v -= config.hmcEps / 2 * config.hmcBeta * g[0]
-                        zhats += config.hmcEps * v
+                    for steps in range(hmcL):
+                        v -= hmcEps / 2 * hmcBeta * g[0]
+                        zhats += hmcEps * v
                         np.copyto(zhats, np.clip(zhats, -1, 1))
                         loss, g, _, _ = self.sess.run(run, feed_dict=fd)
-                        v -= config.hmcEps / 2 * config.hmcBeta * g[0]
+                        v -= hmcEps / 2 * hmcBeta * g[0]
 
                     for img in range(batchSz):
-                        logprob_old = config.hmcBeta * loss_old[img] + np.sum(v_old[img] ** 2) / 2
-                        logprob = config.hmcBeta * loss[img] + np.sum(v[img] ** 2) / 2
+                        logprob_old = hmcBeta * loss_old[img] + np.sum(v_old[img] ** 2) / 2
+                        logprob = hmcBeta * loss[img] + np.sum(v[img] ** 2) / 2
                         accept = np.exp(logprob_old - logprob)
                         if accept < 1 and np.random.uniform() > accept:
                             np.copyto(zhats[img], zhats_old[img])
 
-                    config.hmcBeta *= config.hmcAnneal
+                    hmcBeta *= hmcAnneal
 
                 else:
                     assert (False)

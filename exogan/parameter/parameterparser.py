@@ -54,3 +54,7 @@ class ParameterParser():
         config = self._raw_config.dict()
         parameters = config['Completion']
         return parameters
+
+    def full_dict(self):
+        config = self._raw_config.dict()
+        return config
