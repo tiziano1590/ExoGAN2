@@ -18,6 +18,7 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 from six.moves import xrange
 import sys
+import copy
 
 from exogan.util import *
 
@@ -158,7 +159,7 @@ class DCGAN(object):
             ======
             An existing model was found in the checkpoint directory.
             If you just cloned this repository, it's a model for exoplanetary spectra 
-            creating repackagint 10 millions spectra in groups of 10 thousands.
+            creating repackaging 10 millions spectra in groups of 10 thousands.
             If you want to train a new model from scratch,
             delete the checkpoint directory or specify a different
             --checkpoint_dir argument.
@@ -220,13 +221,29 @@ class DCGAN(object):
                 if np.mod(counter, 1000) == 2:
                     self.save(checkpoint_dir, counter)
 
-    def complete(self, config, X, path="", sigma=0.0):
+    def complete(self, comppars, X, sigma=0.0):
         """
         Finds the best representation that can complete any missing
         part of the ASPA code.
 
         Input: any spectrum correctly converted into an ASPA code
         """
+        outDir = comppars['outDir']
+        maskType = comppars['maskType']
+        centerScale = comppars['centerScale']
+        nIter = int(comppars['nIter'])
+        outInterval = int(comppars['outInterval'])
+        approach = comppars['approach']
+
+        beta1 = comppars['beta1']
+        beta2 = comppars['beta2']
+        lr = comppars['lr']
+        eps = comppars['eps']
+
+        hmcL = int(comppars['hmcL'])
+        hmcEps = comppars['hmcEps']
+        hmcBeta = comppars['hmcBeta']
+        hmcAnneal = comppars['hmcAnneal']
         checkpoint_dir = directory(comppars['checkpoint_dir'])
 
         if type(X) == dict:
@@ -245,8 +262,6 @@ class DCGAN(object):
         except IOError:
             true_spectrum = None
 
-        build_directories(config)
-
         with self.sess.as_default():
             try:
                 tf.global_variables_initializer().run()
@@ -256,7 +271,8 @@ class DCGAN(object):
         isLoaded = self.load(checkpoint_dir)
         assert (isLoaded)
 
-        wnw_grid = np.genfromtxt('wnw_grid.txt')
+        grids = Grids()
+        wnw_grid = grids.wnw_grid
 
         nImgs = self.batch_size
 

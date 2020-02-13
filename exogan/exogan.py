@@ -51,10 +51,21 @@ def main():
             
     if args.completion:
         comppars = pp.comppars()
-        checkpointDir = comppars['checkpointDir']
-        check_range = comppars['checkpointsRange']
-        planet_prob = comppars['synth_planet_probability']
-        checkpointsRange = [checkpointDir+str(ii) for ii in range(int(check_range[0]), int(check_range[1])+1)]
+        checkpointDir = directory(comppars['checkpointDir'])
+        lam = float(comppars['lam'])
+        imgSize = int(comppars['imgSize'])
+
+        spectrum = ['./input_spectrum.dat']
+
+        args = parser.parse_args()
+        assert (os.path.exists(checkpointDir))
+        tf.reset_default_graph()
+        config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=True)
+        config.gpu_options.allow_growth = True
+        comppars['outDir'] = "tests/%d/%s" % (cc, test_set[ii].split('/')[-1][:-5])
+        with tf.Session(config=config) as sess:
+            dcgan = DCGAN(sess)
+            dcgan.complete(comppars)
 
 
     print('ExoGAN PROGRAM FINISHES AT %s' % datetime.datetime.now())
