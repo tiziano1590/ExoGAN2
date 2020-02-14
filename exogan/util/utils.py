@@ -10,12 +10,9 @@ from __future__ import division
 import math
 import pprint
 import scipy.misc
-import imageio
 import matplotlib.pyplot as plt
 import numpy as np
-import time
 import os
-import stat
 import pickle
 import logging
 import glob
@@ -25,6 +22,7 @@ import tensorflow as tf
 import multiprocessing as mp
 import copy
 from PIL import Image
+import imageio
 import corner
 from scipy.stats import chisquare
 from scipy.interpolate import interp1d
@@ -37,6 +35,7 @@ from exogan.parameter import ParameterParser
 RJUP = 6.9911e7
 MJUP = 1.898e27
 
+
 def find_nearest(array, value):
     array = np.asarray(array)
     idx = (np.abs(array - value)).argmin()
@@ -46,12 +45,13 @@ def find_nearest(array, value):
 def make_dir(name):
     if not os.path.exists(name):
         os.makedirs(name)
-        
+
+
 def directory(name):
     if name[-1] == '/':
         return name
     else:
-        return name+'/'
+        return name + '/'
 
 
 def conv_out_size_same(size, stride):
@@ -73,32 +73,9 @@ def planckel(wavelength, temperature=5800):
     """
     return 3.7418301e8 / (wavelength ** 5 * (np.exp(14387.86e0 / (wavelength * temperature)) - 1.))
 
-def prepare_test(file_paths):
-    """
-    Returns a list of all the lightcurves array in the given directory
-    :param root: dataset directory
-    :return: list of arrays
-    """
-    try:
-        file_paths = glob(file_paths + "*.pgz")
-    except TypeError:
-        pass
-    training_array = []
-    for file_path in file_paths:
-        if file_path[-3:] == 'pgz':
-            arr_list = pickle.load(gzip.open(file_path, 'rb'))
-            for arr in arr_list:
-                arr = arr.reshape(72, 72)
-                training_array.append(arr)
-        elif file_path[-3:] == "npy":
-            arr = np.load(file_path)
-            arr = arr.reshape(72, 72)
-            training_array.append(arr)
-    training_array = np.array(training_array)
-    return training_array
 
 def quantile_corner(x, q, weights=None):
-  """
+    """
 
   * Taken from corner.py
   __author__ = "Dan Foreman-Mackey (danfm@nyu.edu)"
@@ -111,49 +88,15 @@ def quantile_corner(x, q, weights=None):
   * optional weights on x
 
   """
-  if weights is None:
-    return np.percentile(x, [100. * qi for qi in q])
-  else:
-    idx = np.argsort(x)
-    xsorted = x[idx]
-    cdf = np.add.accumulate(weights[idx])
-    cdf /= cdf[-1]
-    return np.interp(q, cdf, xsorted).tolist()
-
-def file_is_modified(filePath, logfile):
-    """
-    Check wheter a file has been modified, this function is particularly
-    to check the library_grid file and generate the tuple of parameters to be run
-    and simulate the appropriate planetary systems
-    :param filePath: file to check
-    :return: Boolean: returns a variable to indicate whether the file is the same
-    of last run of it has been modified
-    """
-
-    fileStatsObj = os.stat(filePath)
-
-    modificationTime = time.ctime(fileStatsObj[stat.ST_MTIME])
-
-    # logging.info("Last Modified Time for '%s': " % filePath.split("/")[-1], modificationTime)
-
-    logfile = {}
-    logfile['modifications'] = {}
-    logfile['modifications'][filePath] = modificationTime
-
-    if not os.path.exists("log.pickle"):
-        pickle.dump(logfile, open("log.pickle", "wb"))
-        logging.info("log.pickle file has been created")
-        return True
+    if weights is None:
+        return np.percentile(x, [100. * qi for qi in q])
     else:
-        last_modified = pickle.load(open("log.pickle", "rb"))
-        check = last_modified['modifications'][filePath] # == modificationTime
-        if not check:
-            logging.info("%s has been modified!" % filePath)
-            pickle.dump(logfile, open("log.pickle", "wb"))
-            return True
-        else:
-            logging.info("%s has always been the same!" % filePath)
-            return False
+        idx = np.argsort(x)
+        xsorted = x[idx]
+        cdf = np.add.accumulate(weights[idx])
+        cdf /= cdf[-1]
+        return np.interp(q, cdf, xsorted).tolist()
+
 
 """
 SECOND PART
@@ -173,10 +116,10 @@ def save_images(images, size, image_path):
 
 
 def imread(path):
-    return scipy.misc.imread(path, mode='RGB').astype(np.float)
+    return imageio.imread(path, mode='RGB').astype(np.float)
 
 
-def merge_images(images, size):
+def merge_images(images):
     return inverse_transform(images)
 
 
@@ -283,12 +226,16 @@ def to_json(output_path, *layers):
                              W.shape[0], W.shape[3], biases, gamma, beta, fs)
         layer_f.write(" ".join(lines.replace("'", "").split()))
 
+
 """
 Deep Learning operations
 """
+
+
 class batch_norm(object):
     """Code modification of http://stackoverflow.com/a/33950177"""
-    def __init__(self, epsilon=1e-5, momentum = 0.9, name="batch_norm"):
+
+    def __init__(self, epsilon=1e-5, momentum=0.9, name="batch_norm"):
         with tf.compat.v1.variable_scope(name):
             self.epsilon = epsilon
             self.momentum = momentum
@@ -299,6 +246,7 @@ class batch_norm(object):
         return tf.contrib.layers.batch_norm(x, decay=self.momentum, updates_collections=None, epsilon=self.epsilon,
                                             center=True, scale=True, is_training=train, scope=self.name)
 
+
 def binary_cross_entropy(preds, targets, name=None):
     """Computes binary cross entropy given `preds`.
     For brevity, let `x = `, `z = targets`.  The logistic loss is
@@ -306,19 +254,24 @@ def binary_cross_entropy(preds, targets, name=None):
     Args:
         preds: A `Tensor` of type `float32` or `float64`.
         targets: A `Tensor` of the same type and shape as `preds`.
+        :param targets: targets
+        :param preds: predictions
+        :param name: label associated to binary_cross_entropy function
     """
     eps = 1e-12
     with ops.op_scope([preds, targets], name, "bce_loss") as name:
         preds = ops.convert_to_tensor(preds, name="preds")
         targets = ops.convert_to_tensor(targets, name="targets")
         return tf.reduce_mean(-(targets * tf.log(preds + eps) +
-                              (1. - targets) * tf.log(1. - preds + eps)))
+                                (1. - targets) * tf.log(1. - preds + eps)))
+
 
 def conv_cond_concat(x, y):
     """Concatenate conditioning vector on feature map axis."""
     x_shapes = x.get_shape()
     y_shapes = y.get_shape()
-    return tf.concat(3, [x, y*tf.ones([x_shapes[0], x_shapes[1], x_shapes[2], y_shapes[3]])])
+    return tf.concat(3, [x, y * tf.ones([x_shapes[0], x_shapes[1], x_shapes[2], y_shapes[3]])])
+
 
 def conv2d(input_, output_dim,
            k_h=5, k_w=5, d_h=2, d_w=2, stddev=0.02,
@@ -334,6 +287,7 @@ def conv2d(input_, output_dim,
 
         return conv
 
+
 def conv2d_transpose(input_, output_shape,
                      k_h=5, k_w=5, d_h=2, d_w=2, stddev=0.02,
                      name="conv2d_transpose", with_w=False):
@@ -344,12 +298,12 @@ def conv2d_transpose(input_, output_shape,
 
         try:
             deconv = tf.nn.conv2d_transpose(input_, w, output_shape=output_shape,
-                                strides=[1, d_h, d_w, 1])
+                                            strides=[1, d_h, d_w, 1])
 
         # Support for verisons of TensorFlow before 0.7.0
         except AttributeError:
             deconv = tf.nn.deconv2d(input_, w, output_shape=output_shape,
-                                strides=[1, d_h, d_w, 1])
+                                    strides=[1, d_h, d_w, 1])
 
         biases = tf.get_variable('biases', [output_shape[-1]], initializer=tf.constant_initializer(0.0))
         # deconv = tf.reshape(tf.nn.bias_add(deconv, biases), deconv.get_shape())
@@ -360,11 +314,13 @@ def conv2d_transpose(input_, output_shape,
         else:
             return deconv
 
+
 def lrelu(x, leak=0.2, name="lrelu"):
     with tf.variable_scope(name):
         f1 = 0.5 * (1 + leak)
         f2 = 0.5 * (1 - leak)
         return f1 * x + f2 * abs(x)
+
 
 def linear(input_, output_size, scope=None, stddev=0.02, bias_start=0.0, with_w=False):
     shape = input_.get_shape().as_list()
@@ -378,6 +334,7 @@ def linear(input_, output_size, scope=None, stddev=0.02, bias_start=0.0, with_w=
             return tf.matmul(input_, matrix) + bias, matrix, bias
         else:
             return tf.matmul(input_, matrix) + bias
+
 
 """
 Utilities from ExoGAN v1.0
@@ -417,16 +374,6 @@ def build_directories(config):
     make_dir('predictions', config)
 
 
-def center_crop(x, crop_h, crop_w=None, resize_w=64):
-    if crop_w is None:
-        crop_w = crop_h
-    h, w = x.shape[:2]
-    j = int(round((h - crop_h) / 2.))
-    i = int(round((w - crop_w) / 2.))
-    return scipy.misc.imresize(x[j:j + crop_h, i:i + crop_w],
-                               [resize_w, resize_w])
-
-
 def check_molecule_existence(mol_list, array, array_names, default=-7.9):
     real_mol = []
     for mol in mol_list:
@@ -449,32 +396,8 @@ def clear_all():
         del globals()[var]
 
 
-def find_nearest(array, value):
-    idx = (np.abs(array - value)).argmin()
-    return array[idx], idx
-
-
 def get_image(image_path, image_size, is_crop=True):
     return transform(imread(image_path), image_size, is_crop)
-
-
-def get_mnist(limit=None):
-    if not os.path.exists('../large_files'):
-        print("You must create a folder called large_files adjacent to the class folder first.")
-    if not os.path.exists('../large_files/train.csv'):
-        print("Looks like you haven't downloaded the data or it's not in the right spot.")
-        print("Please get train.csv from https://www.kaggle.com/c/digit-recognizer")
-        print("and place it in the large_files folder.")
-
-    print("Reading in and transforming data...")
-    df = pd.read_csv('../large_files/train.csv')
-    data = df.as_matrix()
-    np.random.shuffle(data)
-    X = data[:, 1:] / 255.0  # data is from 0..255
-    Y = data[:, 0]
-    if limit is not None:
-        X, Y = X[:limit], Y[:limit]
-    return X, Y
 
 
 def get_parameters(X, size=33):
@@ -704,12 +627,14 @@ def get_spectral_matrix(path, parfile=None, size=23):
 
     return new_row
 
+
 def fun(f, q_in, q_out):
     while True:
         i, x = q_in.get()
         if i is None:
             break
         q_out.put((i, f(x)))
+
 
 def parmap(f, X, nprocs):
     q_in = mp.Queue(1)
@@ -729,8 +654,8 @@ def parmap(f, X, nprocs):
 
     return [x for i, x in sorted(res)]
 
-def get_aspa_dataset_from_hdf5(train_path):
 
+def get_aspa_dataset_from_hdf5(train_path):
     train_list = glob.glob(train_path + "*.h5")
 
     # print("Loading  h5 file to python dictionary...")
@@ -759,7 +684,6 @@ def get_aspa_dataset_from_hdf5(train_path):
 
 
 def get_test_image(X, sigma=0.0, size=33, batch_size=64, parfile=None, wfc3=False):
-
     batch = []
     if type(X) == dict:
         X_to_split = copy.deepcopy(X)
@@ -773,7 +697,6 @@ def get_test_image(X, sigma=0.0, size=33, batch_size=64, parfile=None, wfc3=Fals
     else:
         X_to_split = np.array(X)
         test = lambda x: get_spectral_matrix(x)
-
 
     new_zeros = np.zeros((size, size, 1))
     for i in range(batch_size):
@@ -884,6 +807,7 @@ def load(filename):
     object = pickle.loads(buffer)
     file.close()
     return object
+
 
 def make_corner_plot(all_hists, ranges, labels, ground_truths, comppars, index):
     make_dir('histograms/corner', comppars)
@@ -1190,6 +1114,6 @@ def transform(image, npx=64, is_crop=True):
         cropped_image = image
     return np.array(cropped_image)
 
+
 def load_dict_from_hdf5(filename):
     return ReportInterface.__load_dict_from_hdf5__(filename)
-
