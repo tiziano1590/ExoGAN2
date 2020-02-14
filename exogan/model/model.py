@@ -449,7 +449,7 @@ class DCGAN(object):
                     all_hists = np.array(all_hists).T
 
                     if make_corner:
-                        make_corner_plot(all_hists, ranges, labels, ground_truths, config, i)
+                        make_corner_plot(all_hists, ranges, labels, ground_truths, comppars, i)
 
                     """
                     Plot histograms
@@ -531,17 +531,17 @@ class DCGAN(object):
                     if spectra_int_norm:
                         # Compared real spectrum with the generated one
                         spectra_int_norm(Xtrue, self.image_size, wnw_grid,
-                                         batchSz, G_imgs, config, i)
+                                         batchSz, G_imgs, comppars, i)
 
                     if spectra_norm:
                         # Compare spectra with original normalisation between 0 and 1
                         spectra_norm(Xtrue, self.image_size, wnw_grid,
-                                     batchSz, G_imgs, config, i)
+                                     batchSz, G_imgs, comppars, i)
 
                     if spectra_real_norm:
                         # Compare spectra with the normalisation factor from the real spectrum
                         spectra_real_norm(Xtrue, self.image_size, wnw_grid,
-                                          batchSz, G_imgs, config, i)
+                                          batchSz, G_imgs, comppars, i)
 
                 if approach == 'adam':
                     # Optimize single completion with Adam

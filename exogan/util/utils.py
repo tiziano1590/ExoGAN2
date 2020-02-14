@@ -7,20 +7,12 @@
 Some codes from https://github.com/Newmu/dcgan_code
 """
 from __future__ import division
-import os
-import numpy as np
-import sys
 import math
-from tqdm import tqdm
-import json
-import random
 import pprint
 import scipy.misc
 import imageio
 import matplotlib.pyplot as plt
-import itertools
 import numpy as np
-from time import gmtime, strftime
 import time
 import os
 import stat
@@ -33,6 +25,9 @@ import tensorflow as tf
 import multiprocessing as mp
 import copy
 from PIL import Image
+import corner
+from scipy.stats import chisquare
+from scipy.interpolate import interp1d
 
 from tensorflow.python.framework import ops
 from exogan.tools import ReportInterface
@@ -57,297 +52,6 @@ def directory(name):
         return name
     else:
         return name+'/'
-
-def nan_rem(arr):
-    """
-    DEPRECATED: Antonino's IDL function to take care of NaNs.
-    Kept just as a possible example
-
-    :param arr:
-    :return: array without nans
-    """
-    ll = np.where(arr > 0)[0]
-    nn1 = len(arr)
-    indx = np.arange(nn1, dtype=int)
-    indx = np.delete(indx, ll)
-    print(indx)
-
-    nn = len(indx)
-    for k in range(2, nn - 3 + 1):
-        dum = arr[indx[k] - 2: indx[k] + 2]
-        ll = np.where((dum > 0))[0]
-        nnp = len(ll)
-        print(nnp)
-        sys.exit()
-        arr[indx[k]] = sum(dum[ll]) / nnp
-
-    dum = arr[indx[1] - 1: indx[1] + 1]
-    ll = np.where(dum > 0)[0]
-    nnp = len(ll)
-    arr[indx[1]] = sum(dum[ll]) / nnp
-    dum = arr[indx[nn - 2] - 1: indx[nn - 2] + 1]
-    ll = np.where(dum > 0)[0]
-    nnp = len(ll)
-    arr[indx[nn - 2]] = sum(dum[ll]) / nnp
-    if indx[0] == 0: arr[0] = arr[1] + (arr[1] - arr[2])
-    if indx[0] != 0: arr[indx[0]] = (arr[indx[0] - 1] + arr[indx[0] + 1]) / 2.
-    if indx[nn - 1] == nn1 - 1: arr[nn1 - 1] = arr[nn1 - 2] + (arr[nn1 - 2] - arr[nn1 - 3])
-    if indx[nn - 1] != nn1 - 1: arr[indx[nn - 1]] = (arr[indx[nn - 1] - 1] + arr[indx[nn - 1] + 1]) / 2.
-    return arr
-
-def joint_arr(A, R, a):
-    return A*(R/a)**2
-
-
-def create_lpa(imgsz=72, tup=None):
-    """
-    Create the Lightcurve Parameters Array
-    :param imgsz: image size
-    :param tup: planetary system's parameters
-    :return:
-    """
-    tFsq, tAg, tRp, tMp, ta, tincl, tphi0 = tup
-
-    tjoint = joint_arr(tAg, tRp, ta)
-    max_joint = Ag[-1] * (Rp[-1] / a[0]) ** 2
-
-    # Generate LSPA
-    lpa = np.zeros((imgsz, imgsz))  # initialise LSPA
-    lpa[:61, :61] = tFsq  # normalised lightcurve
-
-    lpa[61:, :12] = tAg  # geometric albedo
-    lpa[:12, 61:] = tAg  # geometric albedo
-
-    lpa[61:, 1 * 12:2 * 12] = (np.log10(tRp) - np.log10(Rp[0])) / (np.log10(Rp[-1]) - np.log10(Rp[0]))  # Planetary radius
-    lpa[1 * 12:2 * 12, 61:] = (np.log10(tRp) - np.log10(Rp[0])) / (np.log10(Rp[-1]) - np.log10(Rp[0]))  # Planetary radius
-
-    if tjoint > min_joint:
-        lpa[61:, 2 * 12:3 * 12] = (np.log10(tjoint) - np.log10(min_joint)) / (np.log10(max_joint) - np.log10(min_joint))  # Joint Parameter
-        lpa[2 * 12:3 * 12, 61:] = (np.log10(tjoint) - np.log10(min_joint)) / (np.log10(max_joint) - np.log10(min_joint))  # Joint Parameter
-    else:
-        lpa[61:, 2 * 12:3 * 12] = 0.0   # Joint Parameter
-        lpa[2 * 12:3 * 12, 61:] = 0.0   # Joint Parameter
-
-    lpa[61:, 3 * 12:4 * 12] = (np.log10(ta) - np.log10(a[0])) / (np.log10(a[-1]) - np.log10(a[0]))  # Orbital semi-major axis
-    lpa[3 * 12:4 * 12, 61:] = (np.log10(ta) - np.log10(a[0])) / (np.log10(a[-1]) - np.log10(a[0]))  # Orbital semi-major axis
-
-    lpa[61:, 4 * 12:5 * 12 + 1] = (tincl - incl[0]) / (incl[-1] - incl[0])  # Orbital inclination
-    lpa[4 * 12:5 * 12 + 1, 61:] = (tincl - incl[0]) / (incl[-1] - incl[0])  # Orbital inclination
-
-    lpa[61:, 61:] = (tphi0 - phi0[0]) / (phi0[-1] - phi0[0])  # Orbital phase
-    return lpa
-
-def unpack_from_fits(tup, rfile, planet=False, imgsz=72, kernel_size=21):
-        """
-                This function unpacks each fits file, extracts the file and
-                it is used as input for a multithreading unpacking function ('get_training_set')
-                :param tup: index for the multithreading unpacking
-                :return:
-                """
-
-        mode = 'corrected'
-
-        # Unpack the tuple
-        Ag, Rp, a, incl, phi0 = tup
-
-        if mode == 'corrected': mod = 7
-        elif mode == 'raw':     mod = 3
-        else:                   mod = None
-
-        Mp = Rp * MJUP / RJUP  # DEPRECATED, the model does not use the planetary mass
-
-        # Define the fits file and open it
-        # rfile = self.file_list[idx]
-        hdul = fits.open(rfile)
-
-        # Unpack corr data
-        data = hdul[1].data
-        data = np.array([np.array(list(datax)) for datax in data])
-        time = np.array(data[:, 0])[:imgsz ** 2]
-        flux = np.array(data[:, mod])[:imgsz ** 2]
-
-        where_are_NaNs = np.where(np.isnan(flux))
-        flux[where_are_NaNs] = np.nanmean(flux)
-        flux = medfilt(flux, kernel_size=kernel_size)
-        
-        if planet:
-            # Include the planet
-            mplanet = PLANET(flux, Rp=Rp, r=a, Ag=Ag, i=incl, phi0=phi0, time_arr=time)
-            Fplanet = mplanet.Fp_Fs_ratio() * flux
-            flux += Fplanet
-
-        # Normalise
-        flux /= np.nanmax(flux)
-        max_flux = np.nanmax(flux)
-        min_flux = np.nanmin(flux)
-        flux = (flux - min_flux) / (max_flux - min_flux)
-
-        Fp = np.zeros(61 ** 2)
-        Fp[:len(flux)] = flux
-        Fsq = Fp.reshape(61, 61)
-
-        sflux = create_lpa(imgsz=imgsz, tup=(Fsq, Ag, Rp, Mp, a, incl, phi0))
-
-        return sflux
-
-
-
-def decipher_lpa(lpa_batch):
-    batch_size = len(lpa_batch)
-
-    """
-    :param lpa: input Lightcurve Parameters Array
-    :return: dictionary of parameters related to input lpa
-    """
-    param = {}
-    param['albedo'] = []
-    param['radius'] = []
-    param['jointpar'] = []
-    param['semiaxis'] = []
-    param['inclination'] = []
-    param['phase'] = []
-
-    for lpa_idx in range(batch_size):
-        lpa = lpa_batch[lpa_idx, :, :, 0]
-        norm_albedo = np.nanmean(np.array([lpa[61:, :12], lpa[:12, 61:].T]))
-        lpa_albedo = norm_albedo
-        param['albedo'].append(lpa_albedo)
-
-        norm_radius = np.nanmean(np.array([lpa[61:, 1 * 12:2 * 12], lpa[1 * 12:2 * 12, 61:].T]))
-        lpa_radius = (norm_radius * (np.log10(Rp[-1]) - np.log10(Rp[0]))) + np.log10(Rp[0])
-        lpa_radius = 10**lpa_radius
-        param['radius'].append(lpa_radius)
-
-        max_joint = Ag[-1] * (Rp[-1] / a[0]) ** 2
-
-        norm_joint = np.nanmean(np.array([lpa[61:, 2 * 12:3 * 12], lpa[2 * 12:3 * 12, 61:].T]))
-        if norm_joint > 0:
-            lpa_joint = (norm_joint * (np.log10(max_joint) - np.log10(min_joint))) + np.log10(min_joint)
-            lpa_joint = 10**lpa_joint
-        else:
-            lpa_joint = 0.0
-        param['jointpar'].append(lpa_joint)
-
-        norm_semiaxis = np.nanmean(np.array([lpa[61:, 3 * 12:4 * 12], lpa[3 * 12:4 * 12, 61:].T]))
-        lpa_semiaxis = (norm_semiaxis * (np.log10(a[-1]) - np.log10(a[0]))) + np.log10(a[0])
-        lpa_semiaxis = 10**lpa_semiaxis
-        param['semiaxis'].append(lpa_semiaxis)
-
-        norm_inclination = np.nanmean(np.array([lpa[61:, 4 * 12:5 * 12 + 1], lpa[4 * 12:5 * 12 + 1, 61:].T]))
-        lpa_inclination = (norm_inclination * (incl[-1] - incl[0])) + incl[0]
-        param['inclination'].append(lpa_inclination)
-
-        norm_phase = np.nanmean(np.array(lpa[61:, 61:]))
-        lpa_phase = (norm_phase * (phi0[-1] - phi0[0])) + phi0[0]
-        param['phase'].append(lpa_phase)
-
-    return param
-
-def plot_histogram(deciphered, label, idx, outdir=''):
-    deciphered[label] = np.array(deciphered[label])
-    if label == 'albedo':
-        plt.title('Albedo')
-        plt.xlabel('Albedo')
-        var = Ag
-        div = 1
-        hist = deciphered[label] / div
-        bins = np.linspace(min(var), max(var), 32)/div
-
-    elif label == 'radius':
-        plt.title('Radius')
-        plt.xlabel('$R_p(R_{JUP}$)')
-        plt.xscale('log')
-        var = Rp
-        div = RJUP
-        hist = deciphered[label] / div
-        bins = np.logspace(min(np.log10(var)), max(np.log10(var)), 32)/div
-    elif label == 'jointpar':
-        plt.title('Joint Parameter')
-        plt.xlabel(r'$A \frac{R_p^2}{a^2}$')
-        plt.xscale('log')
-        var = 1
-        div = 1
-        max_joint = Ag[-1] * (Rp[-1] / a[0]) ** 2
-        hist = deciphered[label]/div
-        bins = np.logspace(np.log10(min_joint), np.log10(max_joint), 32)/div
-    elif label == 'semiaxis':
-        plt.title('Semi-major Axis')
-        plt.xlabel("$a$(AU)")
-        plt.xscale('log')
-        var = a
-        div = AU
-        hist = deciphered[label] / div
-        bins = np.logspace(min(np.log10(var)), max(np.log10(var)), 32)/div
-    elif label == 'inclination':
-        plt.title('Inclination')
-        plt.xlabel('i')
-        var = incl
-        div = 1
-        hist = deciphered[label] / div
-        bins = np.linspace(min(var), max(var), 32) / div
-    elif label == 'phase':
-        plt.title('Initial Phase')
-        plt.xlabel(r'$\varphi_0$')
-        var = phi0
-        div = 1
-        hist = deciphered[label] / div
-        bins = np.linspace(min(var), max(var), 32) / div
-
-    if label != "truths":
-        make_dir(os.path.join(outdir,'histograms/%s' % label))
-
-        truth = deciphered['truths'][label][0] / div
-        weights = np.ones_like(hist) / len(hist)
-        plt.hist(hist,
-                 color='olivedrab',
-                 bins=bins,
-                 weights=weights,
-                 edgecolor='k',
-                 linewidth=1.0)
-        plt.plot([truth, truth], [0, 1], c='orange', label='truth')
-        plt.legend()
-        plt.ylim(0, 1)
-        plt.savefig(str(os.path.join(outdir, "histograms/%s" % label)) + "/%s_%04d.pdf" % (label, idx))
-        plt.close()
-
-def plot_existing_planets(label, planet, ax):
-    if "k2-93" in planet:
-        inclinations = np.array([88.4, 89.58]) * np.pi / 180 + np.pi / 2
-        semiaxii = np.array([19.5, 73]) * (1.4 * RSOL) / AU
-        radii = np.array([0.0188, 0.0166]) * (1.4 *RSOL) / RJUP
-        colors = ['red', 'violet']
-        labels = ["HIP 41378 b", "HIP 41378 c"]
-
-    elif "k2-100" in planet:
-        inclinations = np.array([85.1]) * np.pi / 180 + np.pi / 2
-        semiaxii = np.array([0.0292])
-        radii = np.array([0.31])
-        colors = ['red']
-        labels = ["K2 100 b"]
-
-    elif "k2-184" in planet:
-        inclinations = np.array([89.47]) * np.pi / 180 + np.pi / 2
-        semiaxii = np.array([0.124541])
-        radii = np.array([0.1374])
-        colors = ['red']
-        labels = ["K2 184 b"]
-
-    elif "k2-236" in planet:
-        inclinations = np.array([87.9]) * np.pi / 180 + np.pi / 2
-        semiaxii = np.array([0.148])
-        radii = np.array([0.546])
-        colors = ['red']
-        labels = ["K2 236 b"]
-
-    if label == "inclination":
-        for ii in range(len(inclinations)):
-            ax.plot([inclinations[ii], inclinations[ii]], [0, 1], c=colors[ii], linewidth=2, label=labels[ii])
-    if label == "semiaxis":
-        for ii in range(len(semiaxii)):
-            ax.plot([semiaxii[ii], semiaxii[ii]], [0, 1], c=colors[ii], linewidth=2, label=labels[ii])
-    if label == "radius":
-        for ii in range(len(radii)):
-            ax.plot([radii[ii], radii[ii]], [0, 1], c=colors[ii], linewidth=2, label=labels[ii])
 
 
 def conv_out_size_same(size, stride):
@@ -450,90 +154,6 @@ def file_is_modified(filePath, logfile):
         else:
             logging.info("%s has always been the same!" % filePath)
             return False
-
-def create_parameters_tuple(file_list):
-    file_list = glob.glob(file_list)
-
-    import libraries.library_grid as lg
-    """
-    Create a tuple to allow multiprocessing generation of dataset
-    """
-    logging.info("Creation of parameters' tuple")
-    all_grid = []
-    # Tuple creation for planetary grid
-    for x0 in range(len(file_list)):
-        for x1 in lg.Ag:
-            for x2 in lg.Rp:
-                for x3 in lg.a:
-                    for x4 in lg.incl:
-                        for x5 in lg.phi0:
-                            all_grid.append((int(x0), x1, x2, x3, x4, x5))
-    all_grid = np.array(all_grid)
-    np.random.shuffle(all_grid)
-    return all_grid
-    # np.save("training_tuples.npy", all_grid)
-
-def download_server(server_name='curta.mcia.fr', 
-                    username='tzingales', 
-                    check_fold='/gpfs/home/tzingales/repositories/pythonpackages/ExoGazer/exogazer/tests/0/',
-                    main_fold = "/gpfs/home/tzingales/repositories/pythonpackages/ExoGazer/exogazer/",
-                    my_fold = "/Users/tiziano/Dropbox/PycharmProjects/pypackages/ExoGazer/exogazer/"):
-    def get_remote_list(check_fold):
-        import paramiko
-        import os
-
-        plan_simul = []
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh.connect(server_name, username=username)
-
-        # check_fold = "/gpfs/home/tzingales/repositories/DeepStar/tests/0"
-        rawcommand = 'ls %s' % check_fold
-        command = rawcommand.format(path=check_fold)
-        stdin, stdout, stderr = ssh.exec_command(command)
-        filelist = stdout.read().splitlines()
-
-        ftp = ssh.open_sftp()
-
-        for afile in filelist:
-            (head, filename) = os.path.split(afile)
-            filename = str(filename)
-            filename = filename[2:-1] + "/"
-            plan_simul.append(filename)
-        ftp.close()
-        ssh.close()
-        return plan_simul
-
-    Nsimul = 10
-
-    # main_fold = "/gpfs/home/tzingales/repositories/DeepStar/"
-    # my_fold = "/Users/tiziano/Dropbox/PycharmProjects/DeepStar/"
-
-    plan_simul = get_remote_list(check_fold)
-    print("Checking remote list...")
-    pbar = tqdm(total=len(plan_simul))
-    for ii in range(len(plan_simul)):
-        k2_name = get_remote_list(check_fold+plan_simul[ii])
-        # print(plan_simul[ii]+k2_name[0])
-        plan_simul[ii] += k2_name[0]
-        pbar.update()
-    pbar.close()
-    # print(plan_simul[:2])
-    # exit(0)
-    my_simul = os.listdir(my_fold + "tests/0/")
-
-    plan_simul = [cob_file for cob_file in plan_simul if cob_file[:-1] not in my_simul]
-    
-    print("Downloading planetary analysis...")
-    pbar = tqdm(total=int(len(plan_simul)*Nsimul))
-    for ii in range(Nsimul):
-        for jj in range(len(plan_simul)):
-            cob_file = main_fold + "tests/%d/" % ii + plan_simul[jj] + "histograms/output.pickle"
-            my_dir = my_fold + "tests/%d/" % ii + plan_simul[jj] + "histograms/"
-            make_dir(my_dir)
-            os.system("scp %s@%s:%s" % (username, server_name, cob_file) + " %s" % my_dir + " >/dev/null 2>&1")
-            pbar.update()
-    pbar.close()
 
 """
 SECOND PART
@@ -662,78 +282,6 @@ def to_json(output_path, *layers):
                     };""" % (layer_idx, 2 ** (int(layer_idx) + 2), 2 ** (int(layer_idx) + 2),
                              W.shape[0], W.shape[3], biases, gamma, beta, fs)
         layer_f.write(" ".join(lines.replace("'", "").split()))
-
-
-def make_gif(images, fname, duration=2, true_image=False):
-    import moviepy.editor as mpy
-
-    def make_frame(t):
-        try:
-            x = images[int(len(images) / duration * t)]
-        except:
-            x = images[-1]
-
-        if true_image:
-            return x.astype(np.uint8)
-        else:
-            return ((x + 1) / 2 * 255).astype(np.uint8)
-
-    clip = mpy.VideoClip(make_frame, duration=duration)
-    clip.write_gif(fname, fps=len(images) / duration)
-
-
-def visualize(sess, dcgan, config, option):
-    if option == 0:
-        z_sample = np.random.uniform(-0.5, 0.5, size=(config.batch_size, dcgan.z_dim))
-        samples = sess.run(dcgan.sampler, feed_dict={dcgan.z: z_sample})
-        save_images(samples, [8, 8], './samples/test_%s.png' % strftime("%Y-%m-%d %H:%M:%S", gmtime()))
-    elif option == 1:
-        values = np.arange(0, 1, 1. / config.batch_size)
-        for idx in xrange(100):
-            print(" [*] %d" % idx)
-            z_sample = np.zeros([config.batch_size, dcgan.z_dim])
-            for kdx, z in enumerate(z_sample):
-                z[idx] = values[kdx]
-
-            samples = sess.run(dcgan.sampler, feed_dict={dcgan.z: z_sample})
-            save_images(samples, [8, 8], './samples/test_arange_%s.png' % (idx))
-    elif option == 2:
-        values = np.arange(0, 1, 1. / config.batch_size)
-        for idx in [random.randint(0, 99) for _ in xrange(100)]:
-            print(" [*] %d" % idx)
-            z = np.random.uniform(-0.2, 0.2, size=(dcgan.z_dim))
-            z_sample = np.tile(z, (config.batch_size, 1))
-            # z_sample = np.zeros([config.batch_size, dcgan.z_dim])
-            for kdx, z in enumerate(z_sample):
-                z[idx] = values[kdx]
-
-            samples = sess.run(dcgan.sampler, feed_dict={dcgan.z: z_sample})
-            make_gif(samples, './samples/test_gif_%s.gif' % (idx))
-    elif option == 3:
-        values = np.arange(0, 1, 1. / config.batch_size)
-        for idx in xrange(100):
-            print(" [*] %d" % idx)
-            z_sample = np.zeros([config.batch_size, dcgan.z_dim])
-            for kdx, z in enumerate(z_sample):
-                z[idx] = values[kdx]
-
-            samples = sess.run(dcgan.sampler, feed_dict={dcgan.z: z_sample})
-            make_gif(samples, './samples/test_gif_%s.gif' % (idx))
-    elif option == 4:
-        image_set = []
-        values = np.arange(0, 1, 1. / config.batch_size)
-
-        for idx in xrange(100):
-            print(" [*] %d" % idx)
-            z_sample = np.zeros([config.batch_size, dcgan.z_dim])
-            for kdx, z in enumerate(z_sample): z[idx] = values[kdx]
-
-            image_set.append(sess.run(dcgan.sampler, feed_dict={dcgan.z: z_sample}))
-            make_gif(image_set[-1], './samples/test_gif_%s.gif' % (idx))
-
-        new_image_set = [merge(np.array([images[idx] for images in image_set]), [10, 10]) \
-                         for idx in range(64) + range(63, -1, -1)]
-        make_gif(new_image_set, './samples/test_gif_merged.gif', duration=8)
 
 """
 Deep Learning operations
@@ -901,35 +449,9 @@ def clear_all():
         del globals()[var]
 
 
-def crop_and_resave(inputfile, outputdir):
-    # theoretically, we could try to find the face
-    # but let's be lazy
-    # we assume that the middle 108 pixels will contain the face
-    im = scipy.misc.imread(inputfile)
-    height, width, color = im.shape
-    edge_h = int(round((height - 108) / 2.0))
-    edge_w = int(round((width - 108) / 2.0))
-
-    cropped = im[edge_h:(edge_h + 108), edge_w:(edge_w + 108)]
-    small = imresize(cropped, (64, 64))
-
-    filename = inputfile.split('/')[-1]
-    scipy.misc.imsave("%s/%s" % (outputdir, filename), small)
-
 def find_nearest(array, value):
     idx = (np.abs(array - value)).argmin()
     return array[idx], idx
-
-
-def files2images(filenames):
-    return [scale_image(scipy.misc.imread(fn)) for fn in filenames]
-
-
-def files2images_theano(filenames):
-    # theano wants images to be of shape (C, D, D)
-    # tensorflow wants (D, D, C) which is what scipy imread
-    # uses by default
-    return [scale_image(scipy.misc.imread(fn).transpose((2, 0, 1))) for fn in filenames]
 
 
 def get_image(image_path, image_size, is_crop=True):
@@ -1363,8 +885,8 @@ def load(filename):
     file.close()
     return object
 
-def make_corner_plot(all_hists, ranges, labels, ground_truths, config, index):
-    make_dir('histograms/corner', config)
+def make_corner_plot(all_hists, ranges, labels, ground_truths, comppars, index):
+    make_dir('histograms/corner', comppars)
 
     all_corner = corner(all_hists,
                         range=ranges,
@@ -1376,8 +898,7 @@ def make_corner_plot(all_hists, ranges, labels, ground_truths, config, index):
                         plot_contours=False,
                         fill_contours=False)
     #
-    histName = os.path.join(config.outDir,
-                            'histograms/corner/{:04d}.pdf'.format(index))
+    histName = os.path.join(comppars['outDir'], 'histograms/corner/{:04d}.pdf'.format(index))
     plt.savefig(histName)
 
     plt.close()
@@ -1492,12 +1013,12 @@ def save_images(images, size, image_path):
     return imsave(inverse_transform(images), size, image_path)
 
 
-def spectra_int_norm(Xtrue, imgsz, wnw_grid, batchSz, G_imgs, config, i):
+def spectra_int_norm(Xtrue, imgsz, wnw_grid, batchSz, G_imgs, comppars, i):
     """
     IN-BUILT
     """
-    make_dir('spectra/inbuilt/all', config)
-    make_dir('spectra/inbuilt/best', config)
+    make_dir('spectra/inbuilt/all', comppars)
+    make_dir('spectra/inbuilt/best', comppars)
 
     real_spec = Xtrue[:imgsz, :imgsz, :]
 
@@ -1520,7 +1041,7 @@ def spectra_int_norm(Xtrue, imgsz, wnw_grid, batchSz, G_imgs, config, i):
     ax.set_ylabel(r'$R_p^2/R_s^2$')
     ax.set_xlabel('Wavelength $(\mu m)$')
 
-    histName = os.path.join(config.outDir,
+    histName = os.path.join(comppars['outDir'],
                             'spectra/inbuilt/all/{:04d}.pdf'.format(i))
     plt.xscale('log')
     plt.xticks([1, 10], ['1', '10'])
@@ -1539,7 +1060,7 @@ def spectra_int_norm(Xtrue, imgsz, wnw_grid, batchSz, G_imgs, config, i):
     ax.set_ylabel(r'$R_p^2/R_s^2$')
     ax.set_xlabel('Wavelength $(\mu m)$')
 
-    histName = os.path.join(config.outDir,
+    histName = os.path.join(comppars['outDir'],
                             'spectra/inbuilt/best/{:04d}.pdf'.format(i))
     plt.xscale('log')
     plt.xticks([1, 10], ['1', '10'])
@@ -1548,12 +1069,12 @@ def spectra_int_norm(Xtrue, imgsz, wnw_grid, batchSz, G_imgs, config, i):
     plt.close()
 
 
-def spectra_norm(Xtrue, imgsz, wnw_grid, batchSz, G_imgs, config, i):
+def spectra_norm(Xtrue, imgsz, wnw_grid, batchSz, G_imgs, comppars, i):
     """
     NORMALISED SPECTRA
     """
-    make_dir('spectra/normalised/all', config)
-    make_dir('spectra/normalised/best', config)
+    make_dir('spectra/normalised/all', comppars)
+    make_dir('spectra/normalised/best', comppars)
 
     real_spec = Xtrue[:imgsz, :imgsz, :]
     real_spec = real_spec[:23, :23, 0].flatten()
@@ -1575,7 +1096,7 @@ def spectra_norm(Xtrue, imgsz, wnw_grid, batchSz, G_imgs, config, i):
     ax.set_ylabel(r'$R_p^2/R_s^2$')
     ax.set_xlabel('Wavelength $(\mu m)$')
 
-    histName = os.path.join(config.outDir,
+    histName = os.path.join(comppars['outDir'],
                             'spectra/normalised/all/{:04d}.pdf'.format(i))
     plt.xscale('log')
     plt.xticks([1, 10], ['1', '10'])
@@ -1594,7 +1115,7 @@ def spectra_norm(Xtrue, imgsz, wnw_grid, batchSz, G_imgs, config, i):
     ax.set_ylabel(r'$R_p^2/R_s^2$')
     ax.set_xlabel('Wavelength $(\mu m)$')
 
-    histName = os.path.join(config.outDir,
+    histName = os.path.join(comppars['outDir'],
                             'spectra/normalised/best/{:04d}.pdf'.format(i))
     plt.xscale('log')
     plt.xticks([1, 10], ['1', '10'])
@@ -1603,12 +1124,12 @@ def spectra_norm(Xtrue, imgsz, wnw_grid, batchSz, G_imgs, config, i):
     plt.close()
 
 
-def spectra_real_norm(Xtrue, imgsz, wnw_grid, batchSz, G_imgs, config, i):
+def spectra_real_norm(Xtrue, imgsz, wnw_grid, batchSz, G_imgs, comppars, i):
     """
     WITH REAL NORMALISATION
     """
-    make_dir('spectra/with_real_norm/all', config)
-    make_dir('spectra/with_real_norm/best', config)
+    make_dir('spectra/with_real_norm/all', comppars)
+    make_dir('spectra/with_real_norm/best', comppars)
 
     real_spec_ori = Xtrue[:imgsz, :imgsz, :]
 
@@ -1633,7 +1154,7 @@ def spectra_real_norm(Xtrue, imgsz, wnw_grid, batchSz, G_imgs, config, i):
     ax.set_ylabel(r'$R_p^2/R_s^2$')
     ax.set_xlabel('Wavelength $(\mu m)$')
 
-    histName = os.path.join(config.outDir,
+    histName = os.path.join(comppars['outDir'],
                             'spectra/with_real_norm/all/{:04d}.pdf'.format(i))
     plt.xscale('log')
     plt.xticks([1, 10], ['1', '10'])
@@ -1651,7 +1172,7 @@ def spectra_real_norm(Xtrue, imgsz, wnw_grid, batchSz, G_imgs, config, i):
     ax.set_ylabel(r'$R_p^2/R_s^2$')
     ax.set_xlabel('Wavelength $(\mu m)$')
 
-    histName = os.path.join(config.outDir,
+    histName = os.path.join(comppars['outDir'],
                             'spectra/with_real_norm/best/{:04d}.pdf'.format(i))
     plt.xscale('log')
     plt.xticks([1, 10], ['1', '10'])
