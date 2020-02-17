@@ -133,8 +133,9 @@ class DCGAN(object):
         checkpoint_dir = directory(str(trainpars['checkpoint_dir']))
         sample_dir =    str(trainpars['sample_dir'])
         log_dir =       directory(str(trainpars['log_dir']))
+        training_set_ratio = float(trainpars['training_set_ratio'])
 
-        data = get_aspa_dataset_from_hdf5(dataset)
+        data = get_aspa_dataset_from_hdf5(dataset, training_set_ratio)
         np.random.shuffle(data)
         assert (len(data) > 0)
 
