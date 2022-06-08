@@ -19,7 +19,7 @@ def main():
     from exogan.model import DCGAN
     import os
     
-    parser = argparse.ArgumentParser(description='ExoGazer')
+    parser = argparse.ArgumentParser(description='ExoGAN')
     
     parser.add_argument("-i", "--input", dest='input_file', type=str,
                         required=True, help="Input par file to pass")
