@@ -3,3 +3,9 @@ build
 dist
 ExoGAN.egg-info
 __init__.pyc
+exogan/__pycache__/*
+exogan/model/__pycache__/*
+exogan/parameter/__pycache__/*
+exogan/tools/__pycache__/*
+exogan/util/__pycache__/*
+exogan/libraries/__pycache__/*
