@@ -422,27 +422,27 @@ class DCGAN(object):
             #      save_images(batch_images[:nImgs, :, :, :], [nRows, nCols],
             #                  os.path.join(config.outDir, 'before.pdf'))
             plt.imsave(
-                os.path.join(outDir, "before.png"),
+                os.path.join(outDir, "before.jpg"),
                 Xtrue[:, :, 0],
                 cmap="gist_gray",
-                format="png",
+                format="jpg",
                 dpi=300,
             )
             plt.close()
-            resize(os.path.join(outDir, "before.png"))
+            resize(os.path.join(outDir, "before.jpg"))
 
             masked_images = np.multiply(batch_images, mask)
             #      save_images(masked_images[:nImgs, :, :, :], [nRows, nCols],
             #                  os.path.join(config.outDir, 'masked.pdf'))
             plt.imsave(
-                os.path.join(outDir, "masked.png"),
+                os.path.join(outDir, "masked.jpg"),
                 masked_images[0, :, :, 0],
                 cmap="gist_gray",
-                format="png",
+                format="jpg",
                 dpi=300,
             )
             plt.close()
-            resize(os.path.join(outDir, "masked.png"))
+            resize(os.path.join(outDir, "masked.jpg"))
 
             for img in range(batchSz):
                 with open(
@@ -655,14 +655,14 @@ class DCGAN(object):
                     best_ind = chi_square.index(min(chi_square))
 
                     print(i, np.mean(loss[0:batchSz]))
-                    imgName = os.path.join(outDir, "hats_imgs/{:04d}.png".format(i))
+                    imgName = os.path.join(outDir, "hats_imgs/{:04d}.jpg".format(i))
 
                     #          save_images(G_imgs[:nImgs, :, :, :], [nRows, nCols], imgName)
                     plt.imsave(
                         imgName,
                         G_imgs[best_ind, :, :, 0],
                         cmap="gist_gray",
-                        format="png",
+                        format="jpg",
                         dpi=300,
                     )
                     plt.close()
@@ -670,13 +670,13 @@ class DCGAN(object):
 
                     inv_masked_hat_images = np.multiply(G_imgs, 1.0 - mask)
                     completed = masked_images + inv_masked_hat_images
-                    imgName = os.path.join(outDir, "completed/{:04d}.png".format(i))
+                    imgName = os.path.join(outDir, "completed/{:04d}.jpg".format(i))
                     #          save_images(completed[:nImgs, :, :, :], [nRows, nCols], imgName)
                     plt.imsave(
                         imgName,
                         completed[best_ind, :, :, 0],
                         cmap="gist_gray",
-                        format="png",
+                        format="jpg",
                         dpi=300,
                     )
                     plt.close()
