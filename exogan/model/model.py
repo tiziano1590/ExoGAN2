@@ -421,28 +421,39 @@ class DCGAN(object):
             nCols = int(np.sqrt(nImgs))
             #      save_images(batch_images[:nImgs, :, :, :], [nRows, nCols],
             #                  os.path.join(config.outDir, 'before.pdf'))
-            plt.imsave(
-                os.path.join(outDir, "before.jpg"),
+
+            plt.imshow(
                 Xtrue[:, :, 0],
                 cmap="gist_gray",
-                format="jpg",
-                dpi=300,
+            )
+            plt.axis("off")
+
+            plt.savefig(
+                os.path.join(outDir, "before.png"),
+                dpi=900,
+                bbox_inches="tight",
+                pad_inches=0,
             )
             plt.close()
-            resize(os.path.join(outDir, "before.jpg"))
+            resize(os.path.join(outDir, "before.png"))
 
             masked_images = np.multiply(batch_images, mask)
             #      save_images(masked_images[:nImgs, :, :, :], [nRows, nCols],
             #                  os.path.join(config.outDir, 'masked.pdf'))
-            plt.imsave(
-                os.path.join(outDir, "masked.jpg"),
+
+            plt.imshow(
                 masked_images[0, :, :, 0],
                 cmap="gist_gray",
-                format="jpg",
-                dpi=300,
+            )
+            plt.axis("off")
+            plt.savefig(
+                os.path.join(outDir, "masked.png"),
+                dpi=900,
+                bbox_inches="tight",
+                pad_inches=0,
             )
             plt.close()
-            resize(os.path.join(outDir, "masked.jpg"))
+            resize(os.path.join(outDir, "masked.png"))
 
             for img in range(batchSz):
                 with open(
@@ -655,30 +666,28 @@ class DCGAN(object):
                     best_ind = chi_square.index(min(chi_square))
 
                     print(i, np.mean(loss[0:batchSz]))
-                    imgName = os.path.join(outDir, "hats_imgs/{:04d}.jpg".format(i))
+                    imgName = os.path.join(outDir, "hats_imgs/{:04d}.png".format(i))
 
                     #          save_images(G_imgs[:nImgs, :, :, :], [nRows, nCols], imgName)
-                    plt.imsave(
-                        imgName,
+                    plt.imshow(
                         G_imgs[best_ind, :, :, 0],
                         cmap="gist_gray",
-                        format="jpg",
-                        dpi=300,
                     )
+                    plt.axis("off")
+                    plt.savefig(imgName, dpi=900, bbox_inches="tight", pad_inches=0)
                     plt.close()
                     resize(imgName)
 
                     inv_masked_hat_images = np.multiply(G_imgs, 1.0 - mask)
                     completed = masked_images + inv_masked_hat_images
-                    imgName = os.path.join(outDir, "completed/{:04d}.jpg".format(i))
+                    imgName = os.path.join(outDir, "completed/{:04d}.png".format(i))
                     #          save_images(completed[:nImgs, :, :, :], [nRows, nCols], imgName)
-                    plt.imsave(
-                        imgName,
+                    plt.imshow(
                         completed[best_ind, :, :, 0],
                         cmap="gist_gray",
-                        format="jpg",
-                        dpi=300,
                     )
+                    plt.axis("off")
+                    plt.savefig(imgName, dpi=900, bbox_inches="tight", pad_inches=0)
                     plt.close()
                     resize(imgName)
 
