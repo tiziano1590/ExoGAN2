@@ -1,0 +1,13 @@
+numpy
+configobj
+scipy
+matplotlib
+numpy
+h5py
+tensorflow==1.15
+tqdm
+pillow
+corner
+imageio
+pandas
+astropy
