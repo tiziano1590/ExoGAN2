@@ -208,6 +208,9 @@ class DCGAN(object):
             )
 
         for epoch in xrange(epoch):
+            # print(
+            #     f"Loading dataset number: {[epoch*chunk_num for chunk_num in range(num_chunks)]}"
+            # )
             data = get_aspa_dataset_from_hdf5(dataset, num_chunks)
             np.random.shuffle(data)
             assert len(data) > 0

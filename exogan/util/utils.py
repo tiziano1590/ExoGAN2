@@ -756,7 +756,7 @@ def get_aspa_dataset_from_hdf5(train_path, num_chunks):
     final_dict = {}
 
     def hdf5_loader(ii):
-        print("Loading dataset number %d" % (ii + 1))
+        print(f"Loading datasets {train_list[ii]}")
         data = load_dict_from_hdf5(train_list[ii])
         return data
 
