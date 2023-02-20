@@ -746,11 +746,11 @@ def parmap(f, X, nprocs):
     return [x for i, x in sorted(res)]
 
 
-def get_aspa_dataset_from_hdf5(train_path, training_set_ratio):
+def get_aspa_dataset_from_hdf5(train_path, num_chunks):
     train_list = np.array(glob.glob(train_path + "*.h5"))
     np.random.shuffle(train_list)
-    full_length = int(len(train_list) * training_set_ratio)
-    train_list = train_list[:full_length]
+    # ran_int = np.random.randint(len(train_list))
+    train_list = train_list[:num_chunks]
 
     # print("Loading  h5 file to python dictionary...")
     final_dict = {}

@@ -160,6 +160,7 @@ class DCGAN(object):
         sample_dir = str(trainpars["sample_dir"])
         log_dir = directory(str(trainpars["log_dir"]))
         training_set_ratio = float(trainpars["training_set_ratio"])
+        num_chunks = int(trainpars["num_chunks"])
 
         d_optim = tf.train.AdamOptimizer(learning_rate, beta1=beta1).minimize(
             self.d_loss, var_list=self.d_vars
@@ -207,7 +208,7 @@ class DCGAN(object):
             )
 
         for epoch in xrange(epoch):
-            data = get_aspa_dataset_from_hdf5(dataset, training_set_ratio)
+            data = get_aspa_dataset_from_hdf5(dataset, num_chunks)
             np.random.shuffle(data)
             assert len(data) > 0
             batch_idxs = min(len(data), train_size) // self.batch_size
