@@ -24,6 +24,7 @@ import copy
 
 from exogan.parameter import ParameterParser
 from exogan.util import *
+from exogan.libraries import Masks
 
 
 class DCGAN(object):
@@ -282,6 +283,8 @@ class DCGAN(object):
 
                 if np.mod(counter, 1000) == 2:
                     self.save(checkpoint_dir, counter)
+            del data
+
 
     def complete(self, comppars, X, parfile=None, sigma=0.0):
         """
@@ -381,6 +384,10 @@ class DCGAN(object):
             mask[-8:, :, :] = 0.0
             mask[:, -10:, :] = 0.0
             mask[-10:, -10:, :] = 0.0
+        elif maskType == 'jwst':
+            masks = Masks()
+            mask = masks.jwst_mask
+            mask = np.expand_dims(mask, axis=2)
         else:
             assert False
 
@@ -846,7 +853,8 @@ class DCGAN(object):
 
             # for normalisations between 0 and 1 use 'tf.nn.sigmoid(hs[4])'
 
-            return tf.nn.sigmoid(hs[4])
+            #return tf.nn.sigmoid(hs[4])
+            return tf.nn.tanh(hs[4])
 
     def save(self, checkpoint_dir, step):
         if not os.path.exists(checkpoint_dir):

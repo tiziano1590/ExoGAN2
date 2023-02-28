@@ -582,7 +582,7 @@ def get_spectral_matrix(path, parfile=None, size=23):
             real_pars["Atmosphere"]["active_gases_mixratios"]
         )
 
-        atm_active_gases_mixratios = -np.log10(atm_active_gases_mixratios) / 8.0
+        atm_active_gases_mixratios = -np.log10(atm_active_gases_mixratios) / 8.0 #TODO check normalisation
         if "H2O" in atm_active_gases:
             index = np.where(atm_active_gases == "H2O")[0]
             h2o_mixratio = atm_active_gases_mixratios[index]
@@ -628,12 +628,16 @@ def get_spectral_matrix(path, parfile=None, size=23):
                 value /= 2.0 * MJUP
             elif key == "h2o_mixratio":
                 value = -np.log10(value) / 8.0
+                #value = (value - 1/8)/(1-1/8) # TO be checked
             elif key == "ch4_mixratio":
                 value = -np.log10(value) / 8.0
+                #value = (value - 1/8)/(1-1/8) # TO be checked
             elif key == "co_mixratio":
                 value = -np.log10(value) / 8.0
+                #value = (value - 1/8)/(1-1/8) # TO be checked
             elif key == "co2_mixratio":
                 value = -np.log10(value) / 8.0
+                #value = (value - 1/8)/(1-1/8) # TO be checked
 
             param_list.append(value)
 
@@ -717,7 +721,7 @@ def get_spectral_matrix(path, parfile=None, size=23):
             # Add Tp
             new_row[-1, :size, 0] = planet_temperature
 
-    return new_row
+    return 2*new_row -1
 
 
 def fun(f, q_in, q_out):
@@ -865,9 +869,9 @@ def histogram_par(
         inter = np.mean(ASPA_read(G, layer, mol, imgsz))
         if not np.isnan(inter):
             histospec.append(inter)
-    histospec = np.array(histospec)
+    histospec = (np.array(histospec)+1)/2.0 # Correction for -1 and +1
 
-    histospec = (histospec) * mult(mol)[0]
+    histospec = (histospec) * mult(mol)[0]  
     all_hists.append(histospec)
 
     q_16, q_50, q_84 = quantile_corner(histospec, [0.16, 0.5, 0.84])
@@ -1063,6 +1067,9 @@ def spectra_int_norm(Xtrue, imgsz, wnw_grid, batchSz, G_imgs, comppars, i):
 
     real_spec = recon_spectrum(real_spec)
 
+    spectra_int_norm_dict = {}
+    #labels = [i for i in range(batchSz)]
+
     chi_square = []
     spectra = []
     f, ax = plt.subplots(sharey=True, figsize=(12, 6))
@@ -1081,7 +1088,17 @@ def spectra_int_norm(Xtrue, imgsz, wnw_grid, batchSz, G_imgs, comppars, i):
             #     spectrum[: len(wnw_grid) - 4], f_exp=real_spec[: len(wnw_grid) - 4]
             # )[0]
         )
+
+        spectra_int_norm_dict[k] = np.zeros((len(wnw_grid[:-4]), 2))
+        spectra_int_norm_dict[k][:, 0] = wnw_grid[:-4]
+        spectra_int_norm_dict[k][:, 1] = spectrum[: len(wnw_grid) - 4]
+
         ax.plot(wnw_grid[:-4], spectrum[: len(wnw_grid) - 4])
+
+        #spectra_int_norm_dict[labels[k]] = np.zeros((len(wnw_grid[:-4], 2)))
+        #spectra_int_norm_dict[labels[k]][0] = wnw_grid[:-4]
+        #spectra_int_norm_dict[labels[k]][1] = spectrum[: len(wnw_grid) - 4]
+
     ax.plot(wnw_grid[:-4], real_spec[: len(wnw_grid) - 4], "-k", label="real spectrum")
     #          red_patch = mpatches.Patch(color='red', label='real spectrum')
     #          col_patch = mpatches.Patch(color='rainbow', label='generated spectra')
@@ -1089,6 +1106,12 @@ def spectra_int_norm(Xtrue, imgsz, wnw_grid, batchSz, G_imgs, comppars, i):
 
     ax.set_ylabel(r"$R_p^2/R_s^2$")
     ax.set_xlabel("Wavelength $(\mu m)$")
+
+    #Pickle
+    spectra_int_norm_dict_pickle = os.path.join(
+        comppars["outDir"], "spectra/inbuilt/all/spectra_int_norm.pickle")
+    with open(spectra_int_norm_dict_pickle, 'wb') as file:
+        pickle.dump(spectra_int_norm_dict, file)
 
     histName = os.path.join(
         comppars["outDir"], "spectra/inbuilt/all/{:04d}.pdf".format(i)
@@ -1111,6 +1134,15 @@ def spectra_int_norm(Xtrue, imgsz, wnw_grid, batchSz, G_imgs, comppars, i):
     #          red_patch = mpatches.Patch(color='red', label='real spectrum')
     #          col_patch = mpatches.Patch(color='rainbow', label='generated spectra')
     ax.legend()
+
+    best_spec = np.zeros((len(wnw_grid[:-4]), 2))
+    best_spec[:, 0] = wnw_grid[:-4]
+    best_spec[:, 1] = spectra[best_ind][: len(wnw_grid) - 4]
+
+    best_path = os.path.join(
+        comppars["outDir"], "spectra/inbuilt/best/best_spectra_int_norm.dat"
+    )
+    np.savetxt(best_path, best_spec)
 
     ax.set_ylabel(r"$R_p^2/R_s^2$")
     ax.set_xlabel("Wavelength $(\mu m)$")
@@ -1135,6 +1167,9 @@ def spectra_norm(Xtrue, imgsz, wnw_grid, batchSz, G_imgs, comppars, i):
     real_spec = Xtrue[:imgsz, :imgsz, :]
     real_spec = real_spec[:23, :23, 0].flatten()
 
+    spectra_norm_dict = {}
+    labels = [i for i in range(batchSz)]
+
     chi_square = []
     spectra = []
     f, ax = plt.subplots(sharey=True, figsize=(12, 6))
@@ -1149,6 +1184,11 @@ def spectra_norm(Xtrue, imgsz, wnw_grid, batchSz, G_imgs, comppars, i):
             # chisquare(spectrum[:440], f_exp=real_spec[:440])[0]
         )
         ax.plot(wnw_grid[:-4], spectrum[: len(wnw_grid) - 4])
+
+        spectra_norm_dict[labels[k]] = np.zeros((len(wnw_grid[:-4]), 2))
+        spectra_norm_dict[labels[k]][:,0] = wnw_grid[:-4]
+        spectra_norm_dict[labels[k]][:,1] = spectrum[: len(wnw_grid) - 4]
+
     ax.plot(wnw_grid[:-4], real_spec[: len(wnw_grid) - 4], "-k", label="real spectrum")
     #          red_patch = mpatches.Patch(color='red', label='real spectrum')
     #          col_patch = mpatches.Patch(color='rainbow', label='generated spectra')
@@ -1156,6 +1196,12 @@ def spectra_norm(Xtrue, imgsz, wnw_grid, batchSz, G_imgs, comppars, i):
 
     ax.set_ylabel(r"$R_p^2/R_s^2$")
     ax.set_xlabel("Wavelength $(\mu m)$")
+
+    #Pickle for spectra_norm
+    spectra_norm_dict_pickle = os.path.join(
+        comppars["outDir"], "spectra/normalised/all/spectra_norm.pickle")
+    with open(spectra_norm_dict_pickle, 'wb') as file:
+        pickle.dump(spectra_norm_dict, file)
 
     histName = os.path.join(
         comppars["outDir"], "spectra/normalised/all/{:04d}.pdf".format(i)
@@ -1178,6 +1224,15 @@ def spectra_norm(Xtrue, imgsz, wnw_grid, batchSz, G_imgs, comppars, i):
     #          red_patch = mpatches.Patch(color='red', label='real spectrum')
     #          col_patch = mpatches.Patch(color='rainbow', label='generated spectra')
     ax.legend()
+
+    best_spec = np.zeros((len(wnw_grid[:-4]), 2))
+    best_spec[:, 0] = wnw_grid[:-4]
+    best_spec[:, 1] = spectra[best_ind][: len(wnw_grid) - 4]
+
+    best_path = os.path.join(
+        comppars["outDir"], "spectra/normalised/best/best_spectra_norm.dat"
+    )
+    np.savetxt(best_path, best_spec)
 
     ax.set_ylabel(r"$R_p^2/R_s^2$")
     ax.set_xlabel("Wavelength $(\mu m)$")
@@ -1203,6 +1258,8 @@ def spectra_real_norm(Xtrue, imgsz, wnw_grid, batchSz, G_imgs, comppars, i):
 
     real_spec = recon_spectrum(real_spec_ori)
 
+    spectra_real_norm_dict = {}
+
     chi_square = []
     spectra = []
     f, ax = plt.subplots(sharey=True, figsize=(12, 6))
@@ -1219,6 +1276,11 @@ def spectra_real_norm(Xtrue, imgsz, wnw_grid, batchSz, G_imgs, comppars, i):
             # chisquare(spectrum[:-8], f_exp=real_spec[:-8])[0]
         )
         ax.plot(wnw_grid[:-8], spectrum[: len(wnw_grid) - 8])
+
+        spectra_real_norm_dict[k] = np.zeros((len(wnw_grid[:-8]), 2))
+        spectra_real_norm_dict[k][:, 0] = wnw_grid[:-8]
+        spectra_real_norm_dict[k][:, 1] = spectrum[: len(wnw_grid) - 8]
+
     ax.plot(wnw_grid[:-8], real_spec[: len(wnw_grid) - 8], "-k", label="real spectrum")
     #          red_patch = mpatches.Patch(color='red', label='real spectrum')
     #          col_patch = mpatches.Patch(color='rainbow', label='generated spectra')
@@ -1226,6 +1288,11 @@ def spectra_real_norm(Xtrue, imgsz, wnw_grid, batchSz, G_imgs, comppars, i):
 
     ax.set_ylabel(r"$R_p^2/R_s^2$")
     ax.set_xlabel("Wavelength $(\mu m)$")
+
+    spectra_real_norm_dict_pickle = os.path.join(
+        comppars["outDir"], "spectra/with_real_norm/all/spectra_real_norm.pickle")
+    with open(spectra_real_norm_dict_pickle, 'wb') as file:
+        pickle.dump(spectra_real_norm_dict, file)
 
     histName = os.path.join(
         comppars["outDir"], "spectra/with_real_norm/all/{:04d}.pdf".format(i)
@@ -1247,6 +1314,16 @@ def spectra_real_norm(Xtrue, imgsz, wnw_grid, batchSz, G_imgs, comppars, i):
     #          red_patch = mpatches.Patch(color='red', label='real spectrum')
     #          col_patch = mpatches.Patch(color='rainbow', label='generated spectra')
     ax.legend()
+
+    best_spec = np.zeros((len(wnw_grid[:-8]), 2))
+    best_spec[:, 0] = wnw_grid[:-8]
+    best_spec[:, 1] = spectra[best_ind][: len(wnw_grid) - 8]
+
+    best_path = os.path.join(
+        comppars["outDir"], "spectra/with_real_norm/best/real_norm_spectrum.dat"
+    )
+    np.savetxt(best_path, best_spec)
+
 
     ax.set_ylabel(r"$R_p^2/R_s^2$")
     ax.set_xlabel("Wavelength $(\mu m)$")
