@@ -1,10 +1,10 @@
-"""
-Created on Fri Dec 6 17:04:55 2019
+#"""
+#Created on Fri Dec 6 17:04:55 2019
 
-The main ExoGAN program
+#The main ExoGAN program
 
-@author: Tiziano Zingales - Université de Bordeaux
-"""
+#@author: Tiziano Zingales - Université de Bordeaux
+#"""
 
 def main():
     import argparse

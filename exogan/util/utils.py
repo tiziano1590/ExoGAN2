@@ -852,6 +852,21 @@ def histogram_par(
     gan_m_err,
     ranges,
 ):
+    #Original function
+    #def mult(mol):
+    #    functs = {
+    #        "CO": [-8.0, 0, (-8, 0)],
+    #        "CO2": [-8.0, 1, (-8, 0)],
+    #        "H2O": [-8.0, 2, (-8, 0)],
+    #        "CH4": [-8.0, 3, (-8, 0)],
+    #        "Rp": [1.5, 4, (0.8, 1.5)],
+    #        "Mp": [2.0, 5, (0.8, 2.1)],
+    #        "Tp": [2e3, 6, (1000.0, 2100.0)],
+    #    }
+    #    return functs[mol]
+    
+    #Modified function for jwst
+
     def mult(mol):
         functs = {
             "CO": [-8.0, 0, (-8, 0)],

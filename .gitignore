@@ -9,3 +9,5 @@ exogan/parameter/__pycache__/*
 exogan/tools/__pycache__/*
 exogan/util/__pycache__/*
 exogan/libraries/__pycache__/*
+exogan.egg-info/*
+*.pyc
