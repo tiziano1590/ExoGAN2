@@ -1,0 +1,22 @@
+name: exogan
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pip
+  - pip:
+    - numpy
+    - configobj
+    - scipy
+    - matplotlib
+    - h5py
+    - tensorflow>=2.0
+    - tqdm
+    - pillow
+    - corner
+    - imageio
+    - pandas
+    - astropy
+    - sphinx>=4.0
+    - sphinx-rtd-theme

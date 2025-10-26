@@ -40,7 +40,7 @@ Full documentation is available at: https://tiziano1590.github.io/ExoGAN2/
 
 ## Requirements
 
-- Python >= 3.7
+- Python 3.8 - 3.11 (recommended: 3.11)
 - TensorFlow >= 2.0
 - NumPy
 - SciPy
