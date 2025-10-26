@@ -1,14 +1,37 @@
+# IDEs
 .idea
-build
-dist
-ExoGAN.egg-info
-__init__.pyc
-exogan/__pycache__/*
-exogan/model/__pycache__/*
-exogan/parameter/__pycache__/*
-exogan/tools/__pycache__/*
-exogan/util/__pycache__/*
-exogan/libraries/__pycache__/*
+.vscode/
+*.swp
+*.swo
+*~
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
 
 # Sphinx documentation
 docs/_build/
+docs/_static/
+docs/_templates/
+
+# Environments
+venv/
+venv311/
+ENV/
+env/
+.venv
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Old files
+*.old
+*.bak

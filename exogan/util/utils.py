@@ -826,9 +826,8 @@ def getpar(parser, sec, par, type=None):
             return [int(m) for m in l]
         else:
             logging.error(
-                "Cannot set parameter %s in section %s. Parameter type %s not recognized. Set to None"(
-                    par, sec, type
-                )
+                "Cannot set parameter %s in section %s. Parameter type %s not recognized. Set to None"
+                % (par, sec, type)
             )
             return None
     except:
