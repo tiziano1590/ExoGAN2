@@ -1,0 +1,74 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel", "numpy"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "exogan"
+version = "2.0.0"
+description = "ExoGAN 2 atmospheric analysis framework"
+readme = "README.md"
+requires-python = ">=3.7"
+license = {text = "LAB"}
+authors = [
+    {name = "Tiziano Zingales", email = "tiziano.zingales@u-bordeaux.fr"}
+]
+keywords = ["exoplanet", "retrieval", "exogan", "exogan2", "atmosphere", "atmospheric"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: OS Independent",
+    "Operating System :: POSIX",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Unix",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Software Development :: Libraries",
+]
+dependencies = [
+    "numpy",
+    "configobj",
+    "scipy",
+    "matplotlib",
+    "h5py",
+    "tensorflow>=2.0",
+    "tqdm",
+    "pillow",
+    "corner",
+    "imageio",
+    "pandas",
+    "astropy",
+]
+
+[project.optional-dependencies]
+docs = [
+    "sphinx>=4.0",
+    "sphinx-rtd-theme",
+    "sphinx-autodoc-typehints",
+]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "black",
+    "flake8",
+]
+
+[project.urls]
+Homepage = "https://github.com/tiziano1590/ExoGAN2"
+Repository = "https://github.com/tiziano1590/ExoGAN2.git"
+Documentation = "https://tiziano1590.github.io/ExoGAN2/"
+
+[project.scripts]
+exogan = "exogan.exogan:main"
+
+[tool.setuptools]
+packages = ["exogan", "exogan.tools", "exogan.util", "exogan.libraries", "exogan.model", "exogan.parameter"]
+
+[tool.setuptools.package-data]
+"*" = ["*.txt", "*.rst", "*.dat"]

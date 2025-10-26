@@ -9,3 +9,6 @@ exogan/parameter/__pycache__/*
 exogan/tools/__pycache__/*
 exogan/util/__pycache__/*
 exogan/libraries/__pycache__/*
+
+# Sphinx documentation
+docs/_build/
