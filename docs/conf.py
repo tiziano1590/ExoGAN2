@@ -6,8 +6,8 @@ sys.path.insert(0, os.path.abspath('..'))
 
 # -- Project information -----------------------------------------------------
 project = 'ExoGAN 2'
-copyright = '2023, Tiziano Zingales'
-author = 'Tiziano Zingales'
+copyright = '2025, Tiziano Zingales'
+author = 'Tiziano Zingales - Università degli Studi di Padova'
 release = '2.0.0'
 
 # -- General configuration ---------------------------------------------------
@@ -26,6 +26,25 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 # -- Options for HTML output -------------------------------------------------
 html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
+html_theme_options = {
+    'logo_only': False,
+    'display_version': True,
+    'prev_next_buttons_location': 'bottom',
+    'style_external_links': True,
+    'style_nav_header_background': '#2980B9',
+    'collapse_navigation': False,
+    'sticky_navigation': True,
+    'navigation_depth': 4,
+    'includehidden': True,
+    'titles_only': False
+}
+html_logo = None
+html_favicon = None
+html_title = 'ExoGAN 2 Documentation'
+html_short_title = 'ExoGAN 2'
+html_show_sourcelink = True
+html_show_sphinx = True
+html_show_copyright = True
 
 # -- Extension configuration -------------------------------------------------
 autodoc_default_options = {

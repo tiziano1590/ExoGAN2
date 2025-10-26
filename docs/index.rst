@@ -1,62 +1,76 @@
 ExoGAN 2 Documentation
 ======================
 
-ExoGAN 2 is an atmospheric analysis framework for exoplanet characterization using Generative Adversarial Networks (GANs).
+.. image:: https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11-blue
+   :target: https://www.python.org/downloads/
+   :alt: Python Version
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+.. image:: https://img.shields.io/badge/license-MIT-green
+   :target: https://github.com/tiziano1590/ExoGAN2/blob/main/LICENSE
+   :alt: License
 
-   modules
+Welcome to ExoGAN 2's documentation!
+
+ExoGAN 2 is a powerful atmospheric analysis framework for exoplanet characterization using Generative Adversarial Networks (GANs). This framework enables researchers to analyze and retrieve atmospheric parameters from exoplanet spectra using deep learning techniques.
+
+Key Features
+------------
+
+- **Deep Learning Based**: Utilizes DCGAN (Deep Convolutional Generative Adversarial Networks) for spectrum analysis
+- **High Performance**: Optimized for GPU acceleration with TensorFlow  
+- **Flexible Architecture**: Modular design allows easy customization and extension
+- **Comprehensive Tools**: Complete toolkit for training, testing, and atmospheric retrieval
+- **Scientific Accuracy**: Designed for rigorous scientific analysis of exoplanetary atmospheres
+
+Quick Start
+-----------
 
 Installation
-============
-
-Install ExoGAN 2 using pip:
+^^^^^^^^^^^^
 
 .. code-block:: bash
 
-   pip install exogan
+   pip install git+https://github.com/tiziano1590/ExoGAN2.git
 
-Or install from source:
+Basic Usage
+^^^^^^^^^^^
 
-.. code-block:: bash
-
-   git clone https://github.com/tiziano1590/ExoGAN2.git
-   cd ExoGAN2
-   pip install -e .
-
-Usage
-=====
-
-Command Line Interface
-----------------------
-
-ExoGAN 2 provides a command-line interface for training and completion:
-
-Training Mode
-~~~~~~~~~~~~~
+Training a model:
 
 .. code-block:: bash
 
    exogan -i config.par --train
 
-Completion Mode
-~~~~~~~~~~~~~~~
+Running atmospheric completion:
 
 .. code-block:: bash
 
    exogan -i config.par --completion
 
-API Reference
-=============
+Contents
+--------
 
 .. toctree::
    :maxdepth: 2
+   :caption: User Guide
 
-   modules
+   installation
+   quickstart
+   usage
 
-Indices and tables
+.. toctree::
+   :maxdepth: 2
+   :caption: API Reference
+
+   api_modules
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Additional Information
+
+   license
+
+Indices and Tables
 ==================
 
 * :ref:`genindex`

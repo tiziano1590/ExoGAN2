@@ -52,8 +52,8 @@ Full documentation is available at: https://tiziano1590.github.io/ExoGAN2/
 
 ## Author
 
-Tiziano Zingales - Université de Bordeaux
+Tiziano Zingales - Università degli Studi di Padova
 
 ## License
 
-LAB
+MIT License - see [LICENSE](LICENSE) file for details

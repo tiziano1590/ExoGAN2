@@ -1,0 +1,100 @@
+# Git attributes for ExoGAN 2
+
+# Auto detect text files and normalize line endings to LF
+* text=auto eol=lf
+
+# Source code
+*.py text eol=lf
+*.c text eol=lf
+*.cpp text eol=lf
+*.h text eol=lf
+*.hpp text eol=lf
+*.java text eol=lf
+*.js text eol=lf
+*.ts text eol=lf
+
+# Configuration files
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.toml text eol=lf
+*.ini text eol=lf
+*.cfg text eol=lf
+*.conf text eol=lf
+*.par text eol=lf
+
+# Documentation
+*.md text eol=lf
+*.rst text eol=lf
+*.txt text eol=lf
+*.adoc text eol=lf
+
+# Scripts
+*.sh text eol=lf
+*.bash text eol=lf
+*.zsh text eol=lf
+*.fish text eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Data files
+*.csv text eol=lf
+*.tsv text eol=lf
+*.dat text eol=lf
+*.xml text eol=lf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg binary
+*.pdf binary
+*.zip binary
+*.gz binary
+*.tar binary
+*.7z binary
+*.rar binary
+
+# Python compiled files
+*.pyc binary
+*.pyo binary
+*.pyd binary
+*.so binary
+*.dll binary
+*.dylib binary
+*.egg binary
+*.whl binary
+
+# HDF5 files (treat as binary)
+*.h5 binary
+*.hdf5 binary
+
+# NumPy files
+*.npy binary
+*.npz binary
+
+# Archives
+*.tar.gz binary
+*.tgz binary
+
+# Jupyter notebooks (merge strategy)
+*.ipynb merge=union
+
+# Git LFS tracking (if needed for large data files)
+# *.h5 filter=lfs diff=lfs merge=lfs -text
+# *.hdf5 filter=lfs diff=lfs merge=lfs -text
+
+# Export ignore (files not included in exports/archives)
+.gitattributes export-ignore
+.gitignore export-ignore
+.github export-ignore
+*.pyc export-ignore
+__pycache__ export-ignore
+
+# Diff settings for specific file types
+*.py diff=python
+*.md diff=markdown
+*.rst diff
